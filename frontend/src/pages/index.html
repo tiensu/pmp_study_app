@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PMP Exam Practice</title>
+    <link rel="stylesheet" href="/styles/app.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">PMP Study Workspace</p>
+          <h1>PMP Exam Practice</h1>
+          <p class="hero-copy">
+            Study imported PMP exam sets in Practice mode for instant feedback or Exam mode for a timed simulation.
+          </p>
+        </div>
+        <div id="timer" class="timer timer-hidden" aria-live="polite"></div>
+      </header>
+
+      <section id="status" class="status" aria-live="polite"></section>
+      <section id="app" class="panel"></section>
+    </main>
+
+    <script type="module" src="/scripts/app.js"></script>
+  </body>
+</html>
