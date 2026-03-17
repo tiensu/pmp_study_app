@@ -1,0 +1,16 @@
+﻿{
+  "name": "pmp-exam-practice-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node tests/run-tests.js",
+    "migrate": "node src/db/migrate.js",
+    "import": "node src/import/run-import.js"
+  },
+  "dependencies": {
+    "pg": "^8.12.0"
+  }
+}

@@ -1,0 +1,52 @@
+﻿services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pmp-postgres
+    environment:
+      POSTGRES_DB: pmp_learning_app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pmp_learning_app"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: pmp-backend
+    environment:
+      PORT: 3001
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: pmp_learning_app
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./csv:/app/../csv:ro
+      - ./sql:/app/../sql:ro
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: pmp-frontend
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres-data:
