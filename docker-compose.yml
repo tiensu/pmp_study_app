@@ -1,4 +1,4 @@
-﻿services:
+services:
   postgres:
     image: postgres:16-alpine
     container_name: pmp-postgres
@@ -36,6 +36,7 @@
     volumes:
       - ./csv:/app/../csv:ro
       - ./sql:/app/../sql:ro
+      - ./pdf_to_csv/csv:/pdf_to_csv/csv:ro
 
   frontend:
     build:

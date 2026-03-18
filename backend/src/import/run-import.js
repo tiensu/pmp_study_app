@@ -1,9 +1,10 @@
-﻿import { createExamImportService } from '../services/exam-import-service.js';
+import { createExamImportService } from '../services/exam-import-service.js';
 import { closePool } from '../db/connection.js';
 
 const service = createExamImportService();
+const directoryPath = process.argv[2];
 
-service.importDirectory()
+service.importDirectory(directoryPath)
   .then(async (items) => {
     for (const item of items) {
       console.log(`${item.slug}: ${item.questionCount} valid question(s), ${item.skippedRowCount} skipped row(s)`);
