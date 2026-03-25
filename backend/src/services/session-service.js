@@ -1,10 +1,20 @@
-﻿import { createExamSetRepository } from '../models/exam-set-repository.js';
+import { createExamSetRepository } from '../models/exam-set-repository.js';
 import { createQuestionRepository } from '../models/question-repository.js';
 import { createSessionRepository } from '../models/session-repository.js';
 import { createSessionAnswerRepository } from '../models/session-answer-repository.js';
+import { createSessionQuestionRepository } from '../models/session-question-repository.js';
 import { calculateDeadline, hasExpired } from './exam-timer-service.js';
 import { buildPracticeFeedback } from './practice-feedback-service.js';
 import { calculateSummary } from './scoring-service.js';
+
+function shuffleQuestions(questions, random = Math.random) {
+  const shuffled = [...questions];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
 
 function buildQuestionPayload(session, question, answer) {
   return {
@@ -44,6 +54,8 @@ export function createSessionService({
   questionRepository = createQuestionRepository(),
   sessionRepository = createSessionRepository(),
   sessionAnswerRepository = createSessionAnswerRepository(),
+  sessionQuestionRepository = createSessionQuestionRepository(),
+  random = Math.random,
 } = {}) {
   return {
     async listExamSets() {
@@ -56,14 +68,17 @@ export function createSessionService({
         throw new Error('The selected exam set does not contain any valid questions.');
       }
 
+      const orderedQuestions = shuffleQuestions(await questionRepository.listByExamSet(examSetId), random);
       const startedAt = new Date();
       const deadlineAt = mode === 'exam' ? calculateDeadline(startedAt) : null;
       const session = await sessionRepository.create({
         examSetId,
         mode,
         deadlineAt,
-        totalQuestions: examSet.questionCount,
+        totalQuestions: orderedQuestions.length,
       });
+      await sessionQuestionRepository.replaceForSession(session.id, orderedQuestions);
+
       return {
         ...toSessionSummary({ ...session, importSummary: examSet.importSummary }),
       };
@@ -88,7 +103,7 @@ export function createSessionService({
         return this.completeSession(sessionId, { expired: true });
       }
 
-      const question = await questionRepository.getByExamSetAndNumber(session.examSetId, questionNumber);
+      const question = await sessionQuestionRepository.getForSessionQuestion(sessionId, questionNumber);
       if (!question) {
         throw new Error('Question not found.');
       }
@@ -112,7 +127,7 @@ export function createSessionService({
         return this.completeSession(sessionId, { expired: true });
       }
 
-      const question = await questionRepository.getByExamSetAndNumber(session.examSetId, questionNumber);
+      const question = await sessionQuestionRepository.getForSessionQuestion(sessionId, questionNumber);
       if (!question) {
         throw new Error('Question not found.');
       }
@@ -157,7 +172,7 @@ export function createSessionService({
         throw new Error('Session not found.');
       }
 
-      const questions = await questionRepository.listByExamSet(session.examSetId);
+      const questions = await sessionQuestionRepository.listForSession(sessionId);
       const answers = await sessionAnswerRepository.listForSession(sessionId);
       const summary = calculateSummary(questions, answers);
       const finalized = await sessionRepository.finalize(sessionId, summary, expired ? 'expired' : 'completed');
@@ -187,7 +202,7 @@ export function createSessionService({
         return this.completeSession(sessionId, { expired: session.mode === 'exam' && hasExpired(session.deadlineAt) });
       }
 
-      const questions = await questionRepository.listByExamSet(session.examSetId);
+      const questions = await sessionQuestionRepository.listForSession(sessionId);
       const answers = await sessionAnswerRepository.listForSession(sessionId);
       const summary = calculateSummary(questions, answers);
       return {

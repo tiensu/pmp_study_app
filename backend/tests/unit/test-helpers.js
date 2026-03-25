@@ -30,6 +30,7 @@ export function createMockRepositories({ questionCount = 5, skippedRowCount = 0 
 
   const sessions = [];
   const answers = [];
+  const sessionQuestions = [];
 
   return {
     examSetRepository: {
@@ -53,6 +54,40 @@ export function createMockRepositories({ questionCount = 5, skippedRowCount = 0 
       },
       async getByExamSetAndNumber(examSetId, questionNumber) {
         return questions.find((item) => item.examSetId === examSetId && item.questionNumber === questionNumber) ?? null;
+      },
+    },
+    sessionQuestionRepository: {
+      async replaceForSession(sessionId, orderedQuestions) {
+        for (let index = sessionQuestions.length - 1; index >= 0; index -= 1) {
+          if (sessionQuestions[index].sessionId === sessionId) {
+            sessionQuestions.splice(index, 1);
+          }
+        }
+
+        orderedQuestions.forEach((question, index) => {
+          sessionQuestions.push({
+            sessionId,
+            questionId: question.id,
+            questionNumber: index + 1,
+          });
+        });
+      },
+      async getForSessionQuestion(sessionId, questionNumber) {
+        const mapping = sessionQuestions.find((item) => item.sessionId === sessionId && item.questionNumber === questionNumber);
+        if (!mapping) {
+          return null;
+        }
+        const question = questions.find((item) => item.id === mapping.questionId);
+        return question ? { ...question, questionNumber: mapping.questionNumber } : null;
+      },
+      async listForSession(sessionId) {
+        return sessionQuestions
+          .filter((item) => item.sessionId === sessionId)
+          .sort((left, right) => left.questionNumber - right.questionNumber)
+          .map((item) => {
+            const question = questions.find((candidate) => candidate.id === item.questionId);
+            return { ...question, questionNumber: item.questionNumber };
+          });
       },
     },
     sessionRepository: {

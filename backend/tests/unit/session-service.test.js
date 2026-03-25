@@ -37,3 +37,21 @@ test('completeSession calculates summary from submitted answers and counts unans
   assert.equal(result.summary.incorrectCount, 4);
   assert.equal(result.summary.unansweredCount, 3);
 });
+
+test('startSession randomizes question order and keeps it stable within the session', async () => {
+  const repositories = createMockRepositories({ questionCount: 4 });
+  const randomValues = [0.75, 0.25, 0.5];
+  const service = createSessionService({
+    ...repositories,
+    random: () => randomValues.shift() ?? 0,
+  });
+
+  const session = await service.startSession({ examSetId: 1, mode: 'exam' });
+  const firstQuestion = await service.getQuestion(session.id, 1);
+  const secondQuestion = await service.getQuestion(session.id, 2);
+  const repeatedFirstQuestion = await service.getQuestion(session.id, 1);
+
+  assert.equal(firstQuestion.prompt, 'Question 3');
+  assert.equal(secondQuestion.prompt, 'Question 2');
+  assert.equal(repeatedFirstQuestion.prompt, 'Question 3');
+});

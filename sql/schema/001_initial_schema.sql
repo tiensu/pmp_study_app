@@ -1,4 +1,4 @@
-﻿CREATE TABLE IF NOT EXISTS exam_sets (
+CREATE TABLE IF NOT EXISTS exam_sets (
     id BIGSERIAL PRIMARY KEY,
     slug TEXT NOT NULL UNIQUE,
     title TEXT NOT NULL,
@@ -60,8 +60,20 @@ CREATE TABLE IF NOT EXISTS session_answers (
     UNIQUE (session_id, question_id)
 );
 
+CREATE TABLE IF NOT EXISTS session_questions (
+    id BIGSERIAL PRIMARY KEY,
+    session_id BIGINT NOT NULL REFERENCES study_sessions(id) ON DELETE CASCADE,
+    question_id BIGINT NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+    question_number INTEGER NOT NULL,
+    UNIQUE (session_id, question_id),
+    UNIQUE (session_id, question_number)
+);
+
 CREATE INDEX IF NOT EXISTS idx_questions_exam_order
     ON questions (exam_set_id, question_number);
 
 CREATE INDEX IF NOT EXISTS idx_session_answers_session_order
     ON session_answers (session_id, question_number);
+
+CREATE INDEX IF NOT EXISTS idx_session_questions_session_order
+    ON session_questions (session_id, question_number);

@@ -6,7 +6,13 @@ import { createMockRepositories } from '../unit/test-helpers.js';
 import { startTestServer } from './test-server.js';
 
 test('Practice mode answer submission returns immediate feedback', async () => {
-  const service = createSessionService(createMockRepositories());
+  const service = createSessionService({
+    ...createMockRepositories(),
+    random: (() => {
+      const values = [0.75, 0.25, 0.5, 0.1];
+      return () => values.shift() ?? 0;
+    })(),
+  });
   const server = createApp({ sessionService: service });
   const testServer = await startTestServer(server);
 
@@ -27,7 +33,7 @@ test('Practice mode answer submission returns immediate feedback', async () => {
 
     assert.equal(answerPayload.result, 'incorrect');
     assert.equal(answerPayload.correctOption, 'A');
-    assert.match(answerPayload.explanation, /Explanation 1/);
+    assert.match(answerPayload.explanation, /Explanation 3/);
   } finally {
     await testServer.close();
   }

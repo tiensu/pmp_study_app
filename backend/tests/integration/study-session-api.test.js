@@ -6,7 +6,13 @@ import { createMockRepositories } from '../unit/test-helpers.js';
 import { startTestServer } from './test-server.js';
 
 test('GET /api/exams and session lifecycle endpoints work for the MVP flow', async () => {
-  const service = createSessionService(createMockRepositories());
+  const service = createSessionService({
+    ...createMockRepositories(),
+    random: (() => {
+      const values = [0.75, 0.25, 0.5, 0.1];
+      return () => values.shift() ?? 0;
+    })(),
+  });
   const server = createApp({ sessionService: service });
   const testServer = await startTestServer(server);
 
@@ -27,6 +33,7 @@ test('GET /api/exams and session lifecycle endpoints work for the MVP flow', asy
     const questionResponse = await fetch(`${testServer.baseUrl}/api/sessions/${sessionPayload.id}/questions/1`);
     const questionPayload = await questionResponse.json();
     assert.equal(questionPayload.questionNumber, 1);
+    assert.equal(questionPayload.prompt, 'Question 3');
 
     const resumeResponse = await fetch(`${testServer.baseUrl}/api/sessions/${sessionPayload.id}`);
     const resumePayload = await resumeResponse.json();

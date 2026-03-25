@@ -1,4 +1,4 @@
-﻿import http from 'node:http';
+import http from 'node:http';
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +8,7 @@ import { createSessionsRoutes } from './routes/sessions-routes.js';
 import { createExamSetRepository } from './models/exam-set-repository.js';
 import { createQuestionRepository } from './models/question-repository.js';
 import { createSessionRepository } from './models/session-repository.js';
+import { migrate } from './db/migrate.js';
 
 const currentFile = fileURLToPath(import.meta.url);
 const backendRoot = path.resolve(path.dirname(currentFile), '..');
@@ -78,7 +79,7 @@ function writeResponse(response, result) {
   response.end(result.body);
 }
 
-export function createApp({ 
+export function createApp({
   sessionService = createSessionService(),
   examSetRepository = createExamSetRepository(),
   questionRepository = createQuestionRepository(),
@@ -124,6 +125,8 @@ export function createApp({
 }
 
 export async function bootstrap() {
+  await migrate();
+
   const port = Number(process.env.PORT ?? '3001');
   const app = createApp();
   return new Promise((resolve) => {
