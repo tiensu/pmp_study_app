@@ -34,6 +34,7 @@ function buildQuestionPayload(session, question, answer) {
     feedback: null,
     deadlineAt: session.deadlineAt,
     importSummary: session.importSummary,
+    isMarkedForReview: question.isMarkedForReview ?? false,
   };
 }
 
@@ -59,6 +60,9 @@ export function createSessionService({
   random = Math.random,
 } = {}) {
   return {
+    async setMarkForReview(sessionId, questionNumber, isMarked) {
+      return sessionQuestionRepository.setMarkForReview(sessionId, questionNumber, isMarked);
+    },
     async listExamSets() {
       return examSetRepository.listReady();
     },

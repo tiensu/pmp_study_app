@@ -12,8 +12,28 @@ function getAuthError() {
 
 export function createSessionsRoutes({ sessionService, sessionRepository, userRepository }) {
   return async function handleSessionsRoute(request) {
-    // Optional: Check user ID for all routes except starting a new session
+    // Mark or unmark a question for review
+    const markMatch = request.pathname.match(/^\/api\/sessions\/(\d+)\/questions\/(\d+)\/mark$/);
     const userId = request.headers['x-user-id'] ? Number(request.headers['x-user-id']) : null;
+    if (request.method === 'POST' && markMatch) {
+      try {
+        if (!userId) return getAuthError();
+        const [, sessionId, questionNumber] = markMatch;
+        // Verify user owns session
+        const session = await sessionRepository.getByIdAndUserId(Number(sessionId), userId);
+        if (!session) return getAuthError();
+        const { isMarked } = request.body;
+        await sessionService.setMarkForReview(Number(sessionId), Number(questionNumber), !!isMarked);
+        return jsonResponse({ success: true });
+      } catch (error) {
+        return jsonResponse(
+          { error: { code: 'SESSION_ERROR', message: error.message } },
+          400,
+        );
+      }
+    }
+    // Optional: Check user ID for all routes except starting a new session
+    // (Đã khai báo userId ở trên, không khai báo lại)
 
     if (request.method === 'POST' && request.pathname === '/api/sessions') {
       try {

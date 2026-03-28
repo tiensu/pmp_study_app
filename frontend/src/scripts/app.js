@@ -235,7 +235,8 @@ function renderLoginScreen() {
     }
 
     try {
-      showToast('Logging in...', 'info', 0);
+      // Show toast for logging in, but auto-dismiss after 3 seconds
+      showToast('Logging in...', 'info', 3000);
       const result = await request('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ username }),
@@ -410,6 +411,10 @@ function buildImageMarkup(imageUrl) {
 
 function renderQuestion() {
   const question = state.question;
+  if (!question) {
+    console.warn('[renderQuestion] state.question is null or undefined!');
+    return;
+  }
   const isFinalQuestion = question.questionNumber === question.totalQuestions;
   const answerMarkup = question.options.map((option) => {
     const classes = ['answer-card'];
@@ -430,6 +435,7 @@ function renderQuestion() {
     `;
   }).join('');
 
+  const isMarked = question.isMarkedForReview;
   qs('app').innerHTML = `
     <section>
       <div class="meta">
@@ -444,9 +450,32 @@ function renderQuestion() {
       <div class="actions">
         <button data-submit ${state.selectedOption ? '' : 'disabled'}>${state.feedback ? (isFinalQuestion ? 'Finish session' : 'Next question') : 'Submit answer'}</button>
         <button class="secondary" data-home>Back to exam list</button>
+        <button class="mark-btn${isMarked ? ' marked' : ''}" data-mark>${isMarked ? 'Unmark' : 'Mark for review'}</button>
       </div>
     </section>
   `;
+  // Mark for review button
+  const markBtn = qs('app').querySelector('[data-mark]');
+  if (markBtn) {
+    markBtn.addEventListener('click', async () => {
+      try {
+        const newMark = !question.isMarkedForReview;
+        await request(`/api/sessions/${state.session.id}/questions/${question.questionNumber}/mark`, {
+          method: 'POST',
+          body: JSON.stringify({ isMarked: newMark })
+        });
+        question.isMarkedForReview = newMark;
+        // Nếu đang ở chế độ allQuestions, cập nhật luôn state.allQuestions
+        if (state.allQuestions && Array.isArray(state.allQuestions)) {
+          const idx = state.allQuestions.findIndex(q => q.questionNumber === question.questionNumber);
+          if (idx >= 0) state.allQuestions[idx].isMarkedForReview = newMark;
+        }
+        renderQuestion();
+      } catch (err) {
+        showToast('Error updating mark: ' + err.message, 'error');
+      }
+    });
+  }
 
   qs('app').querySelectorAll('[data-answer]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -501,10 +530,11 @@ function renderAllQuestions() {
     return;
   }
 
-  // Build question index
-  const indexMarkup = Array.from({ length: state.allQuestions.length }, (_, i) => i + 1)
-    .map((num) => `<button class="question-index-btn" data-jump-to="${num}">${num}</button>`)
-    .join('');
+  // Build question index with mark icon
+  const indexMarkup = state.allQuestions.map((q, i) => {
+    const markIcon = q.isMarkedForReview ? '★' : '';
+    return `<button class="question-index-btn${q.isMarkedForReview ? ' marked' : ''}" data-jump-to="${i + 1}">${i + 1}${markIcon ? ' <span class=\'mark-icon\'>' + markIcon + '</span>' : ''}</button>`;
+  }).join('');
 
   // Build all questions
   const questionsMarkup = state.allQuestions.map((question) => {
@@ -718,14 +748,19 @@ async function loadExamSets() {
 async function startSession({ examSetId, mode }) {
   state.result = null;
   state.feedback = null;
+    console.log('[startSession] examSetId:', examSetId, 'mode:', mode);
   const session = await request('/api/sessions', {
     method: 'POST',
     body: JSON.stringify({ examSetId, mode }),
   });
+    console.log('[startSession] session:', session);
   state.session = session;
   syncPersistedSession(session);
   renderTimer(session.deadlineAt);
-  await loadAllQuestions();
+    await loadAllQuestions();
+    if (mode === 'exam') {
+      await loadQuestion(1);
+    }
 }
 
 async function restoreSession(sessionId) {
@@ -743,30 +778,37 @@ async function restoreSession(sessionId) {
 
 async function loadAllQuestions() {
   try {
+      console.log('[loadAllQuestions] session.id:', state.session?.id);
     const payload = await request(`/api/sessions/${state.session.id}/questions`);
+      console.log('[loadAllQuestions] payload:', payload);
     if (payload.summary) {
       state.result = payload;
       renderResults();
       return;
     }
     state.allQuestions = payload.questions || [];
+      console.log('[loadAllQuestions] state.allQuestions:', state.allQuestions);
     renderTimer(payload.deadlineAt);
     renderAllQuestions();
   } catch (error) {
     showToast(`Error loading questions: ${error.message}`, 'error');
+      console.error('[loadAllQuestions] error:', error);
   }
 }
 
 async function loadQuestion(questionNumber) {
   state.selectedOption = null;
   state.feedback = null;
+    console.log('[loadQuestion] questionNumber:', questionNumber);
   const payload = await request(`/api/sessions/${state.session.id}/questions/${questionNumber}`);
+    console.log('[loadQuestion] payload:', payload);
   if (payload.summary) {
     state.result = payload;
     renderResults();
     return;
   }
   state.question = payload;
+    console.log('[loadQuestion] state.question:', state.question);
   renderTimer(payload.deadlineAt);
   renderQuestion();
 }
@@ -802,6 +844,7 @@ async function boot() {
     // Setup modal overlay click handler
     const modal = qs('import-modal');
     const overlay = modal.querySelector('.modal-overlay');
+      console.log('[renderQuestion] question:', question);
     overlay.addEventListener('click', closeImportModal);
 
     // Check if user is logged in
@@ -823,6 +866,7 @@ async function boot() {
 
     // No active session, load exam sets
     await loadExamSets();
+      console.log('[renderQuestion] isMarkedForReview:', isMarked);
   } catch (error) {
     showToast(error.message, 'error');
   }
@@ -840,7 +884,8 @@ async function importExam() {
   const customExamName = examNameInput ? examNameInput.value.trim() : '';
   
   try {
-    showToast(`Importing ${file.name}...`, 'info', 0);
+    // Show toast for importing, but auto-dismiss after 3 seconds
+    showToast(`Importing ${file.name}...`, 'info', 3000);
     const csvContent = await file.text();
     const payload = await request('/api/exams/import', {
       method: 'POST',
@@ -882,7 +927,7 @@ async function clearAllExams() {
   }
 
   try {
-    setStatus('Deleting selected exams...');
+    showToast('Deleting selected exams...', 'info');
     // Delete each selected exam
     const examIds = Array.from(state.selectedExamsForDelete);
     console.log('Deleting exams:', examIds);

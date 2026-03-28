@@ -1,0 +1,1 @@
+-- Đã xóa migration này vì cột đã tồn tại, tránh lỗi khi migrate lại.
