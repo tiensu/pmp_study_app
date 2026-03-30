@@ -205,7 +205,29 @@ function syncPersistedSession(session) {
   clearPersistedSessionId();
 }
 
+function updateNavbarUser(username) {
+  const userSpan = qs('navbar-username');
+  if (userSpan) {
+    userSpan.textContent = `Logged in as: ${username}`;
+  }
+}
+
+function hideNavbarUser() {
+  const userInfo = qs('navbar-user-info');
+  if (userInfo) {
+    userInfo.style.display = 'none';
+  }
+}
+
+function showNavbarUser() {
+  const userInfo = qs('navbar-user-info');
+  if (userInfo) {
+    userInfo.style.display = 'flex';
+  }
+}
+
 function renderLoginScreen() {
+  hideNavbarUser();
   qs('app').innerHTML = `
     <section class="login-container">
       <h2>Welcome to PMP Exam Practice</h2>
@@ -245,6 +267,7 @@ function renderLoginScreen() {
       state.userId = result.userId;
       state.username = result.username;
       persistUser(result.userId, result.username);
+      updateNavbarUser(result.username);
       
       await loadExamSets();
     } catch (error) {
@@ -279,15 +302,15 @@ async function logout() {
 }
 
 function renderTimer(deadlineAt) {
-  const timer = qs('timer');
+  const timer = qs('navbar-timer');
   if (!deadlineAt) {
-    timer.classList.add('timer-hidden');
+    timer.classList.add('navbar-timer-hidden');
     timer.textContent = '';
     clearInterval(timerInterval);
     return;
   }
 
-  timer.classList.remove('timer-hidden');
+  timer.classList.remove('navbar-timer-hidden');
   const update = () => {
     timer.textContent = formatCountdown(deadlineAt);
   };
@@ -297,6 +320,7 @@ function renderTimer(deadlineAt) {
 }
 
 function renderExamSelection() {
+  showNavbarUser();
   const examCards = state.exams.map((exam) => {
     if (state.deleteMode) {
       const isSelected = state.selectedExamsForDelete.has(exam.id);
@@ -335,10 +359,6 @@ function renderExamSelection() {
 
   qs('app').innerHTML = `
     <section>
-      <div class="user-info">
-        <span>Logged in as: <strong>${state.username}</strong></span>
-        <button id="logout-btn" class="secondary">Logout</button>
-      </div>
       <h2>Manage Exams</h2>
       <div class="actions" style="margin-bottom: 1.5rem;">
         <button onclick="window.openImportModal()">Import Exam</button>
@@ -350,8 +370,6 @@ function renderExamSelection() {
       <div class="grid exam-grid">${examCards || '<p>No ready exam sets are available.</p>'}</div>
     </section>
   `;
-
-  qs('logout-btn').addEventListener('click', logout);
 
   if (state.deleteMode) {
     // Add checkbox change listeners with event delegation
@@ -375,8 +393,10 @@ function renderExamSelection() {
   } else {
     qs('app').querySelectorAll('[data-start]').forEach((button) => {
       button.addEventListener('click', async () => {
-        const [examSetId, mode] = button.dataset.start.split(':');
-        await startSession({ examSetId: Number(examSetId), mode });
+        const parts = button.dataset.start.split(':');
+        const examSetId = Number(parts[0]);
+        const mode = parts[1].trim();
+        await startSession({ examSetId, mode });
       });
     });
   }
@@ -410,6 +430,7 @@ function buildImageMarkup(imageUrl) {
 }
 
 function renderQuestion() {
+  showNavbarUser();
   const question = state.question;
   if (!question) {
     console.warn('[renderQuestion] state.question is null or undefined!');
@@ -525,6 +546,7 @@ function renderQuestion() {
 }
 
 function renderAllQuestions() {
+  showNavbarUser();
   if (!state.allQuestions || state.allQuestions.length === 0) {
     showToast('No questions loaded', 'error');
     return;
@@ -578,13 +600,20 @@ function renderAllQuestions() {
     return `
       <article class="question-card" id="question-${question.questionNumber}">
         <div class="question-header">
-          <h3>Question ${question.questionNumber}</h3>
-          <span class="question-status">
-            ${question.selectedOption ? (state.session.mode === 'practice' && question.feedback 
-              ? `<span class="status-tag ${question.feedback.result === 'correct' ? 'correct' : 'incorrect'}">${question.feedback.result === 'correct' ? '✓' : '✗'}</span>`
-              : `<span class="status-tag answered">✓</span>`)
-            : '<span class="status-tag unanswered">○</span>'}
-          </span>
+          <div>
+            <h3>Question ${question.questionNumber}</h3>
+          </div>
+          <div class="question-actions">
+            <span class="question-status">
+              ${question.selectedOption ? (state.session.mode === 'practice' && question.feedback 
+                ? `<span class="status-tag ${question.feedback.result === 'correct' ? 'correct' : 'incorrect'}">${question.feedback.result === 'correct' ? '✓' : '✗'}</span>`
+                : `<span class="status-tag answered">✓</span>`)
+              : '<span class="status-tag unanswered">○</span>'}
+            </span>
+            <button class="mark-btn${question.isMarkedForReview ? ' marked' : ''}" data-mark-q="${question.questionNumber}" title="${question.isMarkedForReview ? 'Unmark' : 'Mark'} for review">
+              ${question.isMarkedForReview ? '★' : '☆'}
+            </button>
+          </div>
         </div>
         <p class="question-prompt">${formatBulletPoints(question.prompt)}</p>
         ${buildImageMarkup(question.imageUrl)}
@@ -661,7 +690,7 @@ function renderAllQuestions() {
   // Setup event listeners for jumping to questions
   qs('app').querySelectorAll('.question-index-btn').forEach((button) => {
     button.addEventListener('click', (e) => {
-      const questionNumber = Number(e.target.dataset.jumpTo);
+      const questionNumber = Number(e.currentTarget.dataset.jumpTo);
       const element = document.getElementById(`question-${questionNumber}`);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -685,6 +714,30 @@ function renderAllQuestions() {
       await loadExamSets();
     });
   }
+
+  // Setup mark for review buttons
+  qs('app').querySelectorAll('[data-mark-q]').forEach((button) => {
+    button.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const questionNumber = Number(e.target.dataset.markQ);
+      
+      try {
+        const question = state.allQuestions.find(q => q.questionNumber === questionNumber);
+        if (!question) return;
+        
+        const newMark = !question.isMarkedForReview;
+        await request(`/api/sessions/${state.session.id}/questions/${questionNumber}/mark`, {
+          method: 'POST',
+          body: JSON.stringify({ isMarked: newMark })
+        });
+        
+        question.isMarkedForReview = newMark;
+        renderAllQuestions();
+      } catch (err) {
+        showToast('Error updating mark: ' + err.message, 'error');
+      }
+    });
+  });
 }
 
 function buildReviewMarkup(item) {
@@ -703,6 +756,7 @@ function buildReviewMarkup(item) {
 }
 
 function renderResults() {
+  showNavbarUser();
   clearInterval(timerInterval);
   renderTimer(null);
   clearPersistedSessionId();
@@ -758,9 +812,6 @@ async function startSession({ examSetId, mode }) {
   syncPersistedSession(session);
   renderTimer(session.deadlineAt);
     await loadAllQuestions();
-    if (mode === 'exam') {
-      await loadQuestion(1);
-    }
 }
 
 async function restoreSession(sessionId) {
@@ -844,14 +895,30 @@ async function boot() {
     // Setup modal overlay click handler
     const modal = qs('import-modal');
     const overlay = modal.querySelector('.modal-overlay');
-      console.log('[renderQuestion] question:', question);
     overlay.addEventListener('click', closeImportModal);
+
+    // Setup navbar home button
+    const homeBtn = qs('home-btn');
+    if (homeBtn) {
+      homeBtn.addEventListener('click', async () => {
+        clearState();
+        renderTimer(null);
+        await loadExamSets();
+      });
+    }
+
+    // Setup navbar logout button
+    const navbarLogoutBtn = qs('navbar-logout-btn');
+    if (navbarLogoutBtn) {
+      navbarLogoutBtn.addEventListener('click', logout);
+    }
 
     // Check if user is logged in
     const persistedUser = readPersistedUser();
     if (persistedUser) {
       state.userId = persistedUser.userId;
       state.username = persistedUser.username;
+      updateNavbarUser(persistedUser.username);
     } else {
       // No user logged in, show login screen
       renderLoginScreen();
@@ -866,7 +933,6 @@ async function boot() {
 
     // No active session, load exam sets
     await loadExamSets();
-      console.log('[renderQuestion] isMarkedForReview:', isMarked);
   } catch (error) {
     showToast(error.message, 'error');
   }
@@ -962,6 +1028,7 @@ if (typeof window !== 'undefined') {
   window.cancelDeleteMode = cancelDeleteMode;
   window.openImportModal = openImportModal;
   window.closeImportModal = closeImportModal;
+  window.logout = logout;
   window.addEventListener('DOMContentLoaded', () => {
     boot();
   });

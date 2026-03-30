@@ -8,18 +8,29 @@
     <link rel="stylesheet" href="/styles/app.css" />
   </head>
   <body>
-    <main class="app-shell">
-      <header class="hero">
-        <div>
-          <p class="eyebrow">PMP Study Workspace</p>
-          <h1>PMP Exam Practice</h1>
-          <p class="hero-copy">
-            Study imported PMP exam sets in Practice mode for instant feedback or Exam mode for a timed simulation.
-          </p>
+    <!-- Fixed Navbar -->
+    <nav class="navbar">
+      <div class="navbar-container">
+        <div class="navbar-left">
+          <button id="home-btn" class="navbar-home-btn" title="Go to home" aria-label="Go to home">
+            <span class="home-icon">🏠</span>
+          </button>
+          <div class="navbar-title">
+            <p class="navbar-eyebrow">PMP Study Workspace</p>
+            <h1 class="navbar-heading">PMP Exam Practice</h1>
+          </div>
         </div>
-        <div id="timer" class="timer timer-hidden" aria-live="polite"></div>
-      </header>
+        <div class="navbar-right">
+          <div id="navbar-timer" class="navbar-timer navbar-timer-hidden" aria-live="polite"></div>
+          <div id="navbar-user-info" class="navbar-user-info">
+            <span id="navbar-username"></span>
+            <button id="navbar-logout-btn" class="secondary">Logout</button>
+          </div>
+        </div>
+      </div>
+    </nav>
 
+    <main class="app-shell">
       <section id="app" class="panel"></section>
     </main>
 

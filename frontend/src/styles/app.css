@@ -23,12 +23,129 @@ body {
   min-height: 100vh;
   background: linear-gradient(160deg, #f7f2ea 0%, #efe2ce 100%);
   color: var(--text);
+  padding-top: 180px;
+}
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(58, 39, 17, 0.1);
+  z-index: 999;
+}
+
+.navbar-container {
+  width: min(1100px, calc(100vw - 2rem));
+  margin: 0 auto;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.navbar-home-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+}
+
+.navbar-home-btn:hover {
+  background: var(--surface-strong);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.home-icon {
+  display: inline-block;
+}
+
+.navbar-title {
+  min-width: 0;
+}
+
+.navbar-eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  font-size: 0.6rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.navbar-heading {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+  word-break: break-word;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.navbar-timer {
+  min-width: 90px;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent-strong);
+  white-space: nowrap;
+}
+
+.navbar-timer-hidden {
+  display: none;
+}
+
+.navbar-user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.navbar-user-info span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.navbar-user-info button {
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
 }
 
 .app-shell {
   width: min(1100px, calc(100vw - 2rem));
   margin: 0 auto;
-  padding: 2rem 0 4rem;
+  padding: 0 0 4rem;
 }
 
 .hero,
@@ -105,16 +222,86 @@ button {
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.actions button {
-  background: var(--accent);
+/* Primary buttons (Import Exam, Practice Mode) */
+.actions > button:not(.secondary):not([data-mark]):not([data-home]),
+button[data-submit]:not(.secondary) {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   color: white;
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.25);
 }
 
-button.secondary {
-  background: #d3bfa6;
+.actions > button:not(.secondary):not([data-mark]):not([data-home]):hover:not(:disabled),
+button[data-submit]:not(.secondary):hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--accent-strong), #0d5a55);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 118, 110, 0.35);
+}
+
+.actions > button:not(.secondary):not([data-mark]):not([data-home]):active:not(:disabled),
+button[data-submit]:not(.secondary):active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.25);
+}
+
+/* Secondary buttons (Delete, Exam Mode, Cancel) */
+button.secondary,
+.actions button[data-home] {
+  background: linear-gradient(135deg, #d3bfa6, #c5ac8f);
   color: var(--text);
+  box-shadow: 0 4px 12px rgba(58, 39, 17, 0.1);
+  transition: all 0.3s ease;
+}
+
+button.secondary:hover:not(:disabled),
+.actions button[data-home]:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c5ac8f, #b8985f);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(58, 39, 17, 0.2);
+  color: var(--text);
+}
+
+button.secondary:active:not(:disabled),
+.actions button[data-home]:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(58, 39, 17, 0.1);
+}
+
+/* Mark for review button - using both class and attribute selector for compatibility */
+button.mark-btn,
+.actions button[data-mark] {
+  background: #f5f5f5;
+  color: var(--text);
+  border: 2px solid var(--border);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(58, 39, 17, 0.08);
+}
+
+button.mark-btn:hover:not(:disabled),
+.actions button[data-mark]:hover:not(:disabled) {
+  background: #f0f0f0;
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(15, 118, 110, 0.15);
+}
+
+button.mark-btn.marked,
+.actions button[data-mark].marked {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+  box-shadow: 0 2px 8px rgba(252, 211, 77, 0.2);
+}
+
+button.mark-btn.marked:hover:not(:disabled),
+.actions button[data-mark].marked:hover:not(:disabled) {
+  background: #fde68a;
+  border-color: #f59e0b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
 }
 
 button:disabled {
@@ -278,6 +465,49 @@ button:disabled {
     width: min(100vw - 1rem, 1100px);
     padding-top: 1rem;
   }
+
+  .navbar-container {
+    width: 100%;
+    padding: 0.75rem 0.5rem;
+  }
+
+  .navbar-left {
+    flex-wrap: wrap;
+    min-width: 100%;
+  }
+
+  .navbar-title {
+    flex: 1;
+    min-width: 150px;
+  }
+
+  .navbar-eyebrow {
+    font-size: 0.55rem;
+    white-space: nowrap;
+  }
+
+  .navbar-heading {
+    font-size: clamp(1rem, 2vw, 1.4rem);
+  }
+
+  .navbar-right {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .navbar-user-info span {
+    font-size: 0.8rem;
+  }
+
+  .navbar-user-info button {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.8rem;
+  }
+
+  body {
+    padding-top: 200px;
+  }
 }
 
 .import-controls {
@@ -340,14 +570,23 @@ button:disabled {
 }
 
 .login-form button {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   color: white;
   padding: 0.85rem 1.5rem;
   font-size: 1rem;
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.25);
+  transition: all 0.3s ease;
 }
 
-.login-form button:hover {
-  background: var(--accent-strong);
+.login-form button:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--accent-strong), #0d5a55);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 118, 110, 0.35);
+}
+
+.login-form button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.25);
 }
 
 .login-hint {
@@ -578,20 +817,37 @@ button:disabled {
 }
 
 .modal-footer button.primary {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   color: white;
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.25);
+  transition: all 0.3s ease;
 }
 
-.modal-footer button.primary:hover {
-  background: var(--accent-strong);
+.modal-footer button.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--accent-strong), #0d5a55);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(15, 118, 110, 0.35);
+}
+
+.modal-footer button.primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.25);
 }
 
 .modal-footer button.primary.danger {
-  background: var(--danger);
+  background: linear-gradient(135deg, var(--danger), #8f1a12);
+  box-shadow: 0 4px 12px rgba(180, 35, 24, 0.25);
 }
 
-.modal-footer button.primary.danger:hover {
-  background: #8f1a12;
+.modal-footer button.primary.danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #8f1a12, #6b110c);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(180, 35, 24, 0.35);
+}
+
+.modal-footer button.primary.danger:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(180, 35, 24, 0.25);
 }
 
 /* Toast Styles */
@@ -793,12 +1049,26 @@ button:disabled {
   margin-bottom: 1rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid #e0d0c0;
+  flex-wrap: wrap;
 }
 
-.question-header h3 {
-  margin: 0;
-  color: var(--text);
-  font-size: 1.1rem;
+.question-header > div {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.question-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.question-actions .mark-btn {
+  min-width: auto;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  border-radius: 6px;
 }
 
 .question-status {

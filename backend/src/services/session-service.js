@@ -77,11 +77,30 @@ export function createSessionService({
       if (userId) {
         const existingSession = await sessionRepository.findActiveSessionForUser(userId, examSetId);
         if (existingSession) {
-          // Return existing session instead of creating a new one
-          return {
-            ...toSessionSummary({ ...existingSession, importSummary: examSet.importSummary }),
-            resumed: true,
-          };
+          // Check if the requested mode matches the existing session's mode
+          if (existingSession.mode !== mode) {
+            // Mode mismatch - complete the existing session and start a new one with the different mode
+            // User clicked a different mode than their in-progress session
+            const questions = await sessionQuestionRepository.listForSession(existingSession.id);
+            const answers = await sessionAnswerRepository.listForSession(existingSession.id);
+            const summary = calculateSummary(questions, answers);
+            await sessionRepository.finalize(existingSession.id, summary, 'completed');
+            // Now fall through to create a new session with the requested mode
+          } else {
+            // Mode matches - resume the existing session
+            // Verify session has questions, rebuild if needed
+            const sessionQuestions = await sessionQuestionRepository.listForSession(existingSession.id);
+            if (sessionQuestions.length === 0) {
+              // Session questions missing, repopulate them
+              const orderedQuestions = shuffleQuestions(await questionRepository.listByExamSet(examSetId), random);
+              await sessionQuestionRepository.replaceForSession(existingSession.id, orderedQuestions);
+            }
+            // Return existing session instead of creating a new one
+            return {
+              ...toSessionSummary({ ...existingSession, importSummary: examSet.importSummary }),
+              resumed: true,
+            };
+          }
         }
       }
 

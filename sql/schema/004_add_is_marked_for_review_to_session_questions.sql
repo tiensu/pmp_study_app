@@ -1,1 +1,2 @@
--- Đã xóa migration này vì cột đã tồn tại, tránh lỗi khi migrate lại.
+ALTER TABLE session_questions
+ADD COLUMN IF NOT EXISTS is_marked_for_review BOOLEAN NOT NULL DEFAULT FALSE;
