@@ -552,10 +552,31 @@ function renderAllQuestions() {
     return;
   }
 
-  // Build question index with mark icon
+  // Build question index with mark icon and answered/correct status
   const indexMarkup = state.allQuestions.map((q, i) => {
     const markIcon = q.isMarkedForReview ? '★' : '';
-    return `<button class="question-index-btn${q.isMarkedForReview ? ' marked' : ''}" data-jump-to="${i + 1}">${i + 1}${markIcon ? ' <span class=\'mark-icon\'>' + markIcon + '</span>' : ''}</button>`;
+    let statusClass = '';
+    let statusText = '';
+    
+    if (state.session.mode === 'practice') {
+      // In practice mode: show correct/incorrect/unanswered
+      if (!q.selectedOption) {
+        statusClass = 'unanswered';
+        statusText = 'unanswered';
+      } else if (q.feedback) {
+        statusClass = q.feedback.result === 'correct' ? 'correct' : 'incorrect';
+        statusText = q.feedback.result === 'correct' ? 'correct' : 'incorrect';
+      } else {
+        statusClass = 'answered';
+        statusText = 'answered';
+      }
+    } else {
+      // In exam mode: show answered/unanswered only
+      statusClass = q.selectedOption ? 'answered' : 'unanswered';
+      statusText = q.selectedOption ? 'answered' : 'unanswered';
+    }
+    
+    return `<button class="question-index-btn${q.isMarkedForReview ? ' marked' : ''} ${statusClass}" data-jump-to="${i + 1}" title="Q${i + 1}: ${statusText}">${i + 1}${markIcon ? ' <span class=\'mark-icon\'>' + markIcon + '</span>' : ''}</button>`;
   }).join('');
 
   // Build all questions
