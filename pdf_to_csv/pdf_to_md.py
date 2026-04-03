@@ -254,8 +254,9 @@ def _process_text(text):
 def _add_question_separators(md_file_path):
     """
     Post-process .md file:
-    1. Thêm dấu ----------- trước mỗi "Question X" (trừ Question đầu tiên)
-    2. Merge toàn bộ text liên tiếp thành 1 dòng (giữa các keyword và question)
+    1. Loại bỏ các ký tự ** và - ** 
+    2. Thêm dấu ----------- trước mỗi "Question X" (trừ Question đầu tiên)
+    3. Merge toàn bộ text liên tiếp thành 1 dòng (giữa các keyword và question)
     
     Args:
         md_file_path (Path): Đường dẫn file .md
@@ -271,15 +272,27 @@ def _add_question_separators(md_file_path):
     
     while i < len(lines):
         line = lines[i]
+        stripped = line.strip()
         
-        # Kiểm tra nếu dòng này là dòng heading (bắt đầu bằng ** hoặc Question X)
-        is_heading = (line.strip().startswith('**') and line.strip().endswith('**')) or \
-                     re.match(r'^Question\s+\d+', line.strip(), re.IGNORECASE) or \
-                     (line.strip().startswith('- **') and line.strip().endswith('**'))
+        # Loại bỏ ** và - ** từ dòng
+        if stripped.startswith('**') and stripped.endswith('**'):
+            # Là heading, loại bỏ ** khỏi cả hai đầu
+            cleaned = stripped[2:-2].strip()
+            stripped = cleaned
+        elif stripped.startswith('- **') and stripped.endswith('**'):
+            # Là option list item, loại bỏ - ** và **
+            cleaned = stripped[4:-2].strip()
+            stripped = cleaned
         
-        if is_heading:
+        # Kiểm tra nếu dòng này là dòng heading (keyword hoặc Question X)
+        is_heading = (re.match(r'^Question\s+\d+', stripped, re.IGNORECASE) is not None) or \
+                     stripped.upper() in ['QUESTION', 'ANSWER', 'HINT', 'EXPLANATION', 'REFERENCE', 'CORRECT ANSWER', 'DETAILS FOR EACH OPTION'] or \
+                     stripped.isupper() or \
+                     any(ch.isupper() for ch in stripped.split()[0:2] if ch)  # Kiểm tra heading-like
+        
+        if is_heading and stripped:
             # Nếu là Question X, thêm separator trước (nếu không phải Question đầu tiên)
-            if re.match(r'^Question\s+\d+', line.strip(), re.IGNORECASE):
+            if re.match(r'^Question\s+\d+', stripped, re.IGNORECASE):
                 if question_found:
                     # Xóa dòng trống cuối nếu có
                     if result_lines and result_lines[-1].strip() == '':
@@ -290,12 +303,12 @@ def _add_question_separators(md_file_path):
                 else:
                     question_found = True
             
-            result_lines.append(line)
+            result_lines.append(stripped + '\n')
             i += 1
         
-        elif line.strip() == '':
+        elif stripped == '':
             # Dòng trống
-            result_lines.append(line)
+            result_lines.append('\n')
             i += 1
         
         else:
@@ -306,11 +319,23 @@ def _add_question_separators(md_file_path):
                 curr_line = lines[i]
                 curr_stripped = curr_line.strip()
                 
-                # Nếu là dòng trống hoặc heading, dừng merge
-                if curr_stripped == '' or \
-                   (curr_stripped.startswith('**') and curr_stripped.endswith('**')) or \
-                   re.match(r'^Question\s+\d+', curr_stripped, re.IGNORECASE) or \
-                   (curr_stripped.startswith('- **') and curr_stripped.endswith('**')):
+                # Loại bỏ ** và - ** từ dòng hiện tại
+                if curr_stripped.startswith('**') and curr_stripped.endswith('**'):
+                    curr_stripped = curr_stripped[2:-2].strip()
+                elif curr_stripped.startswith('- **') and curr_stripped.endswith('**'):
+                    curr_stripped = curr_stripped[4:-2].strip()
+                
+                # Nếu là dòng trống, dừng merge
+                if curr_stripped == '':
+                    break
+                
+                # Nếu là heading hoặc Question, dừng merge
+                if (re.match(r'^Question\s+\d+', curr_stripped, re.IGNORECASE) is not None) or \
+                   curr_stripped.upper() in ['QUESTION', 'ANSWER', 'HINT', 'EXPLANATION', 'REFERENCE', 'CORRECT ANSWER', 'DETAILS FOR EACH OPTION']:
+                    break
+                
+                # Kiểm tra nếu là option list (bắt đầu bằng A:, B:, C:, D:)
+                if len(curr_stripped) > 2 and curr_stripped[0] in ['A', 'B', 'C', 'D'] and curr_stripped[1] in [':', ' ']:
                     break
                 
                 paragraph_lines.append(curr_stripped)

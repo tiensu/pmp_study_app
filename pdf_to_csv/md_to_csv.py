@@ -10,6 +10,83 @@ import csv
 from pathlib import Path
 
 
+def preprocess_markdown(content):
+    """Preprocess markdown to ensure keywords are at start of lines.
+    
+    Ensures that:
+    - "Correct Answer: X" or "Answer: X"
+    - "Explanation:"
+    - "Hint:"
+    
+    are always at the beginning of lines. If found in the middle of text,
+    move them to a new line.
+    """
+    
+    # Pattern 1: Move "Correct Answer: X" to new line if not at start
+    # Look for text followed by "Correct Answer:" and add newline before it
+    content = re.sub(
+        r'([^\n])\s+(Correct\s+Answer\s*:\s*[A-D])',
+        r'\1\n\2',
+        content,
+        flags=re.IGNORECASE
+    )
+    
+    # Pattern 1b: Move "Answer: X" to new line if not at start (and not "Answer A", "Answer B", etc)
+    # This catches "Answer: C" format
+    content = re.sub(
+        r'([^\n])\s+(Answer\s*:\s*[A-D])(?!\w)',
+        r'\1\n\2',
+        content,
+        flags=re.IGNORECASE
+    )
+    
+    # Pattern 1c: Normalize "Correct\\nAnswer: X" (or "Correct   \\n  Answer: X")
+    # -> "Correct Answer: X"
+    # Some exports split "Correct Answer" across lines.
+    content = re.sub(
+        r'Correct[ \t]*\n[ \t]*Answer\s*:\s*([A-D])',
+        r'Correct Answer: \1',
+        content,
+        flags=re.IGNORECASE
+    )
+    
+    # Pattern 2: Move "Explanation:" to new line if not at start
+    content = re.sub(
+        r'([^\n])\s+(Explanation\s*:)',
+        r'\1\n\2',
+        content,
+        flags=re.IGNORECASE
+    )
+    
+    # Pattern 3: Move "Hint:" to new line if not at start
+    content = re.sub(
+        r'([^\n])\s+(Hint\s*:)',
+        r'\1\n\2',
+        content,
+        flags=re.IGNORECASE
+    )
+    
+    # Pattern 4: Move "Question answered incorrectly/correctly" to new line if not at start
+    content = re.sub(
+        r'([^\n])\s+(Question\s+answered\s+(?:incorrectly|correctly))',
+        r'\1\n\2',
+        content,
+        flags=re.IGNORECASE
+    )
+    
+    # Pattern 5: Fix malformed answer prefixes like
+    # "AError! Not a valid embedded object.<answer text>" -> "A <answer text>"
+    # (observed in some exported markdown files)
+    content = re.sub(
+        r'\b([ABCD])Error!\s+Not\s+a\s+valid\s+embedded\s+object\.\s*',
+        r'\1 ',
+        content,
+        flags=re.IGNORECASE
+    )
+    
+    return content
+
+
 def main(md_file, output_dir="csv"):
     """Main conversion
     
@@ -42,6 +119,11 @@ def main(md_file, output_dir="csv"):
         content = f.read()
     
     print(f"✓ File size: {len(content):,} bytes\n")
+    
+    # ===== PREPROCESSING: Normalize keywords to be at start of lines =====
+    print("🔧 Preprocessing markdown...")
+    content = preprocess_markdown(content)
+    print("✓ Preprocessing complete\n")
     
     # Extract questions
     questions = []
@@ -102,7 +184,19 @@ def main(md_file, output_dir="csv"):
 
 
 def parse_question(q_num, content):
-    """Parse a single question"""
+    """Parse a single question with format:
+    
+    <question text (can start with A_)>
+    A <answer A text>
+    B <answer B text>
+    C <answer C text>
+    D <answer D text>
+    Correct Answer: X
+    Hint: <optional>
+    Explanation: <text, can be multiline>
+    Details for Each Option: (skip)
+    Reference: (skip)
+    """
     
     data = {
         'No': q_num,
@@ -112,293 +206,201 @@ def parse_question(q_num, content):
         'Answer C': '',
         'Answer D': '',
         'Correct Answer': '',
-        'Hint': '',
-        'Explanation': '',
-        'Details for Answer A': '',
-        'Details for Answer B': '',
-        'Details for Answer C': '',
-        'Details for Answer D': ''
+        'Explanation': ''
     }
     
     lines = content.split('\n')
     
-    # ===== FIND SECTION BOUNDARIES =====
-    # Find "Correct Answer:" line first
-    correct_answer_idx = -1
+    # ===== FIND ANSWER SECTION START =====
+    # Prefer locating A/B/C/D by scanning backward from "Question answered ...".
+    # This avoids false matches when question stem starts with "A ...".
+    answer_a_idx = -1
+    answer_b_idx = -1
+    answer_c_idx = -1
+    answer_d_idx = -1
+    
+    answered_idx = -1
     for idx, line in enumerate(lines):
-        if re.match(r'^\s*(?:Correct\s+)?Answer\s*:\s*[A-D]', line, re.IGNORECASE):
-            correct_answer_idx = idx
+        if re.match(r'^Question\s+answered', line.strip(), re.IGNORECASE):
+            answered_idx = idx
             break
     
-    # If found "Correct Answer:", backward search to find the 4 answer choices (A, B, C, D)
-    # They should be immediately before "Correct Answer:" line
-    answer_start = 999
-    answer_end = len(lines)
-    
-    if correct_answer_idx >= 0:
-        answer_end = correct_answer_idx
-        # Backward search from correct_answer to find where answers start
-        # Look for the pattern: 4 consecutive lines with - **A, - **B, - **C, - **D
-        # OR new format: AError!, BError!, CError!, DError!
-        # Note: answers can be multi-line, so we look for the FIRST occurrence of each letter
-        
-        for idx in range(correct_answer_idx - 1, -1, -1):
-            line = lines[idx].strip()
-            # Try old format first: - **D
-            if re.match(r'^\s*-\s+\*\*D\s+', line):
-                # Found D, now search backwards to find A, B, C (skipping continuation lines)
-                d_idx = idx
-                
-                # Find C: search backwards from D, skip lines that don't start with - **
-                c_idx = -1
-                for j in range(d_idx - 1, -1, -1):
-                    if re.match(r'^\s*-\s+\*\*C\s+', lines[j].strip()):
-                        c_idx = j
-                        break
-                
-                if c_idx == -1:
-                    continue
-                
-                # Find B: search backwards from C, skip continuation lines
-                b_idx = -1
-                for j in range(c_idx - 1, -1, -1):
-                    if re.match(r'^\s*-\s+\*\*B\s+', lines[j].strip()):
-                        b_idx = j
-                        break
-                
-                if b_idx == -1:
-                    continue
-                
-                # Find A: search backwards from B, skip continuation lines
-                a_idx = -1
-                for j in range(b_idx - 1, -1, -1):
-                    if re.match(r'^\s*-\s+\*\*A\s+', lines[j].strip()):
-                        a_idx = j
-                        break
-                
-                if a_idx == -1:
-                    continue
-                
-                # Found all 4 answers
-                answer_start = a_idx
+    if answered_idx >= 0:
+        # Find D, C, B, A in reverse order before "Question answered ..."
+        for idx in range(answered_idx - 1, -1, -1):
+            if re.match(r'^D\s+', lines[idx].strip()):
+                answer_d_idx = idx
                 break
-            
-            # Try new format: DError!
-            elif re.match(r'^DError!\s+', line):
-                d_idx = idx
-                
-                # Find C: search backwards from D
-                c_idx = -1
-                for j in range(d_idx - 1, -1, -1):
-                    if re.match(r'^CError!\s+', lines[j].strip()):
-                        c_idx = j
-                        break
-                
-                if c_idx == -1:
-                    continue
-                
-                # Find B: search backwards from C
-                b_idx = -1
-                for j in range(c_idx - 1, -1, -1):
-                    if re.match(r'^BError!\s+', lines[j].strip()):
-                        b_idx = j
-                        break
-                
-                if b_idx == -1:
-                    continue
-                
-                # Find A: search backwards from B
-                a_idx = -1
-                for j in range(b_idx - 1, -1, -1):
-                    if re.match(r'^AError!\s+', lines[j].strip()):
-                        a_idx = j
-                        break
-                
-                if a_idx == -1:
-                    continue
-                
-                # Found all 4 answers in new format
-                answer_start = a_idx
-                break
-    
-    # Fallback: if not found with above method
-    # Only search AFTER the question content (after "?")
-    if answer_start == 999:
-        # First, find where the question ends (last "?" before Correct Answer)
-        question_end_fallback = 0
-        if correct_answer_idx >= 0:
-            for idx in range(correct_answer_idx - 1, -1, -1):
-                if lines[idx].rstrip().endswith('?'):
-                    question_end_fallback = idx + 1
+        if answer_d_idx >= 0:
+            for idx in range(answer_d_idx - 1, -1, -1):
+                if re.match(r'^C\s+', lines[idx].strip()):
+                    answer_c_idx = idx
                     break
-        
-        # Search for first A answer AFTER question ends
-        search_start = max(question_end_fallback, 0)
-        for idx in range(search_start, len(lines)):
-            line = lines[idx].strip()
-            # Look for both old format "- **A" and new format "AError!"
-            # But specifically looking for answer content, not scenario text
-            if re.match(r'^\s*-\s+\*\*A\s+', lines[idx]):
-                # Additional check: make sure this is followed by B, C, D nearby
-                if idx + 3 < len(lines):
-                    has_bcd = (
-                        re.match(r'^\s*-\s+\*\*B\s+', lines[idx + 1].strip()) and
-                        re.match(r'^\s*-\s+\*\*C\s+', lines[idx + 2].strip()) and
-                        re.match(r'^\s*-\s+\*\*D\s+', lines[idx + 3].strip())
-                    )
-                    if has_bcd:
-                        answer_start = idx
-                        break
-            elif re.match(r'^AError!\s+', line):
-                if idx + 3 < len(lines):
-                    has_bcd = (
-                        re.match(r'^BError!\s+', lines[idx + 1].strip()) and
-                        re.match(r'^CError!\s+', lines[idx + 2].strip()) and
-                        re.match(r'^DError!\s+', lines[idx + 3].strip())
-                    )
-                    if has_bcd:
-                        answer_start = idx
-                        break
+        if answer_c_idx >= 0:
+            for idx in range(answer_c_idx - 1, -1, -1):
+                if re.match(r'^B\s+', lines[idx].strip()):
+                    answer_b_idx = idx
+                    break
+        if answer_b_idx >= 0:
+            for idx in range(answer_b_idx - 1, -1, -1):
+                if re.match(r'^A\s+', lines[idx].strip()):
+                    answer_a_idx = idx
+                    break
     
-    # ===== QUESTION TEXT =====
-    # Find where actual question ends (line ending with ?)
-    question_end_idx = 0
-    for idx in range(min(answer_start, len(lines))):
-        if lines[idx].rstrip().endswith('?'):
-            question_end_idx = idx + 1
+    # Fallback if "Question answered ..." marker is missing
+    if answer_d_idx < 0:
+        for idx, line in enumerate(lines):
+            line_stripped = line.strip()
+            if answer_a_idx == -1 and re.match(r'^A\s+', line_stripped):
+                answer_a_idx = idx
+            elif answer_a_idx != -1 and answer_b_idx == -1 and re.match(r'^B\s+', line_stripped):
+                answer_b_idx = idx
+            elif answer_b_idx != -1 and answer_c_idx == -1 and re.match(r'^C\s+', line_stripped):
+                answer_c_idx = idx
+            elif answer_c_idx != -1 and answer_d_idx == -1 and re.match(r'^D\s+', line_stripped):
+                answer_d_idx = idx
+                # Found all four answers, we're done searching
+                break
     
-    # If no ? found, use answer_start
-    if question_end_idx == 0:
-        question_end_idx = min(answer_start, len(lines))
-    
-    # Collect question lines (everything from "Question ID:" to ?)
-    q_text = []
-    
-    # Find start: look for line containing "Question ID:"
-    q_start = 0
-    for idx in range(len(lines)):
-        if 'Question ID' in lines[idx]:
-            q_start = idx + 1
-            break
-    
-    for line in lines[q_start:question_end_idx]:
-        s = line.strip()
-        # Skip empty, skip markdown separators
-        if (s and not s.startswith('---')):
-            # Strip the "- **A " prefix if this is scenario description (part of the question)
-            if re.match(r'^\s*-\s+\*\*[A-D]\s+', s):
-                # Remove the "- **X " prefix to capture just the text
-                s = re.sub(r'^\s*-\s+\*\*[A-D]\s+', '', s)
-            # Remove trailing ** if present
-            s = re.sub(r'\*\*\s*$', '', s)
-            if s:
-                q_text.append(s)
-    
-    data['Question'] = ' '.join(q_text).strip()
-    
-    # ===== ANSWERS A, B, C, D =====
-    # ONLY look between answer_start and answer_end to avoid picking up details section
-    for line in lines[answer_start:answer_end]:
-        s = line.strip()
-        
-        # Pattern 1: Old format - **A Something** or - **A Something (no closing **)
-        match = re.match(r'^\s*-\s+\*\*([A-D])\s+(.+?)(?:\*\*)?$', s)
-        if match:
-            letter = match.group(1)
-            answer = match.group(2).strip()
-            # Remove trailing ** if present
-            answer = re.sub(r'\*\*\s*$', '', answer)
-            data[f'Answer {letter}'] = answer
-        
-        # Pattern 2: New format - [A-D]Error! Not a valid embedded object.TEXT
-        match = re.match(r'^([A-D])Error!\s+Not a valid embedded object\.(.+)$', s)
-        if match:
-            letter = match.group(1)
-            answer = match.group(2).strip()
-            data[f'Answer {letter}'] = answer
-    
-    # ===== CORRECT ANSWER =====
-    for line in lines:
-        # Match both "Answer: X" and "Correct Answer: X" formats
-        match = re.match(r'^\s*(?:Correct\s+)?Answer\s*:\s*([A-D])', line, re.IGNORECASE)
-        if match:
-            data['Correct Answer'] = match.group(1)
-            break
-    
-    # ===== HINT =====
-    # Try pattern 1: **Hint:** label + text
-    hint_match = re.search(
-        r'\*\*Hint:\*\*\s*([\s\S]*?)(?=\n\n\*\*(?:Explanation|Details):\*\*)',
-        content,
-        re.IGNORECASE
-    )
-    
-    if hint_match:
-        hint = hint_match.group(1).strip()
-    else:
-        # Try pattern 2: Text between "Answer: X" and "**Explanation:**" (without Hint label)
-        # This handles cases where hint text is directly after "Answer: X" line
-        hint_match = re.search(
-            r'(?:Correct\s+)?Answer\s*:\s*[A-D]\n([\s\S]+?)\n\n\*\*Explanation:\*\*',
+    # Verify we found all 4 answers
+    # If not found in line-based mode, try inline format:
+    # "... ? A <ansA> B <ansB> C <ansC> D <ansD> Question answered ..."
+    if answer_d_idx < 0:
+        inline_match = re.search(
+            r'(?:\?\s+|:\s+|Top\s+of\s+Form\s+)A\s+(.+?)\s+B\s+(.+?)\s+C\s+(.+?)\s+D\s+(.+?)(?=\s+Question\s+answered|\s+Hint\s*:|\s+Correct\s+Answer\s*:|\s+Answer\s*:\s*[A-D]|$)',
             content,
-            re.IGNORECASE
+            flags=re.IGNORECASE | re.DOTALL
         )
-        if hint_match:
-            hint = hint_match.group(1).strip()
-        else:
-            hint = ""
-    
-    if hint:
-        # Remove bullet list marker if present
-        hint = re.sub(r'^-\s+', '', hint)
-        hint = re.sub(r'\n\s*', ' ', hint)
-        hint = re.sub(r'\s+', ' ', hint)
-        data['Hint'] = hint[:300]
-    
-    # ===== EXPLANATION =====
-    exp_match = re.search(
-        r'\*\*Explanation:\*\*\s*([\s\S]*?)\n\n\*\*Details for Each Option:\*\*',
-        content,
-        re.IGNORECASE
-    )
-    if exp_match:
-        exp = exp_match.group(1).strip()
-        exp = re.sub(r'\n\s*', ' ', exp)
-        exp = re.sub(r'\s+', ' ', exp)
-        data['Explanation'] = exp[:500]
-    
-    # ===== DETAILS FOR EACH OPTION =====
-    details_match = re.search(
-        r'\*\*Details for Each Option:\*\*\s*([\s\S]*?)(?=\*\*Reference|\Z)',
-        content,
-        re.IGNORECASE
-    )
-    
-    if details_match:
-        details_text = details_match.group(1)
-        
-        # Extract text for each A, B, C, D
-        for letter in ['A', 'B', 'C', 'D']:
-            if letter < 'D':
-                # For A, B, C: find from - **A to before next option - **B, - **C, etc.
-                next_letters = ''.join([l for l in 'ABCD' if l > letter])
-                # Pattern: - **A text until \n- **[B,C,D] or end
-                pattern = rf'-\s+\*\*{letter}\s+([\s\S]+?)(?=\n-\s+\*\*[{next_letters}]|$)'
-                detail_match = re.search(pattern, details_text)
-            else:
-                # D is last: from - **D to end
-                pattern = rf'-\s+\*\*{letter}\s+([\s\S]+?)$'
-                detail_match = re.search(pattern, details_text)
+        if inline_match:
+            # ===== EXTRACT QUESTION TEXT (inline mode) =====
+            q_text_raw = content[:inline_match.start()]
+            q_text_raw = re.sub(r'^.*?Question\s+ID\s*:\s*\d+\s*', '', q_text_raw, flags=re.IGNORECASE | re.DOTALL)
+            q_text_raw = re.sub(r'\bTop\s+of\s+Form\b', ' ', q_text_raw, flags=re.IGNORECASE)
+            q_text_raw = re.sub(r'\s+', ' ', q_text_raw).strip()
+            if not q_text_raw:
+                q_text_raw = re.sub(r'^.*?Question\s+ID\s*:\s*\d+\s*', '', content, flags=re.IGNORECASE | re.DOTALL)
+                q_text_raw = re.sub(r'\s+A\s+.*$', '', q_text_raw, flags=re.IGNORECASE | re.DOTALL)
+                q_text_raw = re.sub(r'\bTop\s+of\s+Form\b', ' ', q_text_raw, flags=re.IGNORECASE)
+                q_text_raw = re.sub(r'\s+', ' ', q_text_raw).strip()
+            data['Question'] = q_text_raw
             
-            if detail_match:
-                full_text = detail_match.group(1).strip()
-                # Remove ** artifacts
-                full_text = re.sub(r'^\*\*\s*', '', full_text)
-                full_text = re.sub(r'\*\*\s*', '', full_text)
-                # Compress whitespace
-                full_text = re.sub(r'\n\s*', ' ', full_text)
-                full_text = re.sub(r'\s+', ' ', full_text)
-                data[f'Details for Answer {letter}'] = full_text[:400]
+            data['Answer A'] = re.sub(r'\s+', ' ', inline_match.group(1)).strip()
+            data['Answer B'] = re.sub(r'\s+', ' ', inline_match.group(2)).strip()
+            data['Answer C'] = re.sub(r'\s+', ' ', inline_match.group(3)).strip()
+            data['Answer D'] = re.sub(r'\s+', ' ', inline_match.group(4)).strip()
+        else:
+            return data  # No complete question structure found
+    
+    # ===== EXTRACT QUESTION TEXT =====
+    if answer_d_idx >= 0:
+        # Find "Question ID:" line to start from there
+        q_start_idx = 0
+        for idx, line in enumerate(lines[0:answer_a_idx]):
+            if re.match(r'^Question\s+ID\s*:', line.strip(), re.IGNORECASE):
+                q_start_idx = idx
+                break
+        
+        # If the first detected "A ..." is likely part of the question stem,
+        # move to the next A that still appears before B.
+        if answer_a_idx >= 0 and answer_b_idx > answer_a_idx:
+            a_line = lines[answer_a_idx].strip()
+            b_line = lines[answer_b_idx].strip()
+            stem_before_a = ' '.join(
+                s.strip() for s in lines[max(q_start_idx, 0):answer_a_idx] if s.strip()
+            )
+            # True answers tend to be short list options. A long first "A ..."
+            # with another A before B usually indicates a stem like "A project ..."
+            if (
+                not re.search(r'\?', a_line) and
+                re.search(r'^(A|B|C|D)\s+', b_line) and
+                (
+                    len(a_line) > 90 or
+                    (re.search(r'^Question\s+ID\s*:', lines[max(q_start_idx, 0)].strip(), re.IGNORECASE) and not re.search(r'\?', stem_before_a))
+                )
+            ):
+                for idx in range(answer_a_idx + 1, answer_b_idx):
+                    if re.match(r'^A\s+', lines[idx].strip()):
+                        answer_a_idx = idx
+                        break
+        
+        # Extract question text from q_start_idx to answer_a_idx
+        q_text = []
+        for idx in range(q_start_idx, answer_a_idx):
+            s = lines[idx].strip()
+            # Skip empty lines, dashes, and "of XXX" (from "Question X of XXX")
+            # Also skip lines that match answer patterns (shouldn't happen, but just in case)
+            if s and not s.startswith('---') and not re.match(r'^of\s+\d+', s, re.IGNORECASE):
+                # Remove "Question ID: XXX" prefix if present
+                s = re.sub(r'^Question\s+ID\s*:\s*\d+\s*', '', s, flags=re.IGNORECASE).strip()
+                if s:
+                    q_text.append(s)
+        
+        data['Question'] = ' '.join(q_text).strip()
+        
+        # ===== EXTRACT ANSWERS A, B, C, D =====
+        # We already found the answer indices, just extract the text
+        if answer_a_idx >= 0:
+            data['Answer A'] = re.sub(r'^A\s+', '', lines[answer_a_idx].strip())
+        if answer_b_idx >= 0:
+            data['Answer B'] = re.sub(r'^B\s+', '', lines[answer_b_idx].strip())
+        if answer_c_idx >= 0:
+            data['Answer C'] = re.sub(r'^C\s+', '', lines[answer_c_idx].strip())
+        if answer_d_idx >= 0:
+            data['Answer D'] = re.sub(r'^D\s+', '', lines[answer_d_idx].strip())
+    
+    # ===== EXTRACT CORRECT ANSWER =====
+    for line in lines:
+        # Try both "Correct Answer: X" and "Answer: X" formats
+        match = re.match(r'^Correct\s+Answer\s*:\s*([A-D])', line.strip(), re.IGNORECASE)
+        if not match:
+            match = re.match(r'^Answer\s*:\s*([A-D])(?!\w)', line.strip(), re.IGNORECASE)
+        if match:
+            data['Correct Answer'] = match.group(1).upper()
+            break
+    
+    # ===== EXTRACT EXPLANATION =====
+    # Find "Explanation:" line
+    explanation_idx = -1
+    
+    for idx, line in enumerate(lines):
+        line_stripped = line.strip()
+        if re.match(r'^Explanation\s*:', line_stripped, re.IGNORECASE) and explanation_idx == -1:
+            explanation_idx = idx
+            break
+    
+    if explanation_idx >= 0:
+        line = lines[explanation_idx].strip()
+        # Extract text after "Explanation: "
+        exp_text = re.sub(r'^Explanation\s*:\s*', '', line, flags=re.IGNORECASE)
+        
+        # Collect continuation lines until "Details for Each Option:" appears
+        for i in range(explanation_idx + 1, len(lines)):
+            next_line = lines[i].strip()
+            
+            # Stop if "Details for Each Option:" appears anywhere in the line
+            if 'Details for Each Option' in next_line:
+                break
+            
+            # Stop at Reference
+            if re.match(r'^Reference\s*:', next_line, re.IGNORECASE):
+                break
+            
+            # Stop at dashed separator
+            if re.match(r'^--+', next_line):
+                break
+            
+            if next_line:
+                exp_text += ' ' + next_line
+        
+        # Final cleanup: remove "Details for Each Option" and everything after it
+        if 'Details for Each Option' in exp_text:
+            exp_text = exp_text[:exp_text.index('Details for Each Option')].strip()
+        
+        # Also remove any trailing text that looks like "Details for..." even with slight variations
+        exp_text = re.sub(r'\s+Details\s+for\s+.*$', '', exp_text, flags=re.IGNORECASE)
+        
+        exp_text = re.sub(r'\s+', ' ', exp_text).strip()
+        data['Explanation'] = exp_text[:2000]
     
     return data
 
@@ -408,9 +410,7 @@ def save_to_csv(questions, csv_file):
     
     fieldnames = [
         'No', 'Question', 'Answer A', 'Answer B', 'Answer C', 'Answer D',
-        'Correct Answer', 'Hint', 'Explanation',
-        'Details for Answer A', 'Details for Answer B',
-        'Details for Answer C', 'Details for Answer D'
+        'Correct Answer', 'Explanation'
     ]
     
     with open(csv_file, 'w', newline='', encoding='utf-8-sig') as f:
