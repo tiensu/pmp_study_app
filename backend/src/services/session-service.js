@@ -17,6 +17,7 @@ function shuffleQuestions(questions, random = Math.random) {
 }
 
 function buildQuestionPayload(session, question, answer) {
+  const selectedOption = answer?.selectedOption ?? null;
   return {
     sessionId: session.id,
     mode: session.mode,
@@ -30,8 +31,10 @@ function buildQuestionPayload(session, question, answer) {
       { key: 'C', label: question.optionC },
       { key: 'D', label: question.optionD },
     ],
-    selectedOption: answer?.selectedOption ?? null,
-    feedback: null,
+    selectedOption,
+    feedback: session.mode === 'practice' && selectedOption
+      ? buildPracticeFeedback(question, selectedOption)
+      : null,
     deadlineAt: session.deadlineAt,
     importSummary: session.importSummary,
     isMarkedForReview: question.isMarkedForReview ?? false,

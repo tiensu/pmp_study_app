@@ -38,6 +38,24 @@ test('completeSession calculates summary from submitted answers and counts unans
   assert.equal(result.summary.unansweredCount, 3);
 });
 
+test('getQuestion and getAllQuestions return practice feedback for previously answered questions', async () => {
+  const repositories = createMockRepositories();
+  const service = createSessionService(repositories);
+  const session = await service.startSession({ examSetId: 1, mode: 'practice' });
+
+  await service.submitAnswer(session.id, { questionNumber: 1, selectedOption: 'A' });
+
+  const question = await service.getQuestion(session.id, 1);
+  assert.equal(question.selectedOption, 'A');
+  assert.equal(question.feedback.result, 'correct');
+  assert.equal(question.feedback.correctOption, 'A');
+  assert.match(question.feedback.explanation, /Explanation/);
+
+  const payload = await service.getAllQuestions(session.id);
+  assert.equal(payload.questions[0].selectedOption, 'A');
+  assert.equal(payload.questions[0].feedback.result, 'correct');
+});
+
 test('startSession randomizes question order and keeps it stable within the session', async () => {
   const repositories = createMockRepositories({ questionCount: 4 });
   const randomValues = [0.75, 0.25, 0.5];

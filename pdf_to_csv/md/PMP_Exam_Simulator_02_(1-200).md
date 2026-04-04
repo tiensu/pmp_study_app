@@ -57,8 +57,7 @@ A_project manager is explaining the roles and responsibilities for the quality a
 A The project manager, project team, and management of the performing organization
 B The project sponsor along with the project manager and project team
 C The project manager along with the project team
-D The project manager, project team, project sponsor, management of the performing organization, and
-the customer Correct Answer: D
+D The project manager, project team, project sponsor, management of the performing organization, and the customer Correct Answer: D
 
 Hint: The roles in managing quality for the project may differ in size and effort.
 

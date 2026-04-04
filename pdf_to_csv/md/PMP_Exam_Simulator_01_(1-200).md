@@ -1643,8 +1643,7 @@ B The BCR meets but does not exceed the minimum threshold; therefore, the projec
 be undertaken.
 C The BCR exceeds the minimum threshold and is in alignment with corporate strategy;
 therefore, the project can be undertaken.
-D There is not enough information in the question to calculate the BCR and make an informed
-decision about the project. Answer: C
+D There is not enough information in the question to calculate the BCR and make an informed decision about the project. Answer: C
 
 Hint: The benefit-cost ratio (BCR) represents the benefits divided by the costs.
 
