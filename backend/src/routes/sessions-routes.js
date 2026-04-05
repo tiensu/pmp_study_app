@@ -151,7 +151,7 @@ export function createSessionsRoutes({ sessionService, sessionRepository, userRe
         const session = await sessionRepository.getByIdAndUserId(Number(sessionId), userId);
         if (!session) return getAuthError();
         
-        return jsonResponse(await sessionService.getResults(Number(sessionId)));
+        return jsonResponse(await sessionService.getResults(Number(sessionId), { finalizeInProgress: false }));
       } catch (error) {
         return jsonResponse(
           { error: { code: 'SESSION_ERROR', message: error.message } },

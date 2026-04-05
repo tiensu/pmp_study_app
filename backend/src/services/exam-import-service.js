@@ -36,7 +36,7 @@ export function createExamImportService({
         skippedRowCount: skippedRows.length,
         importSummary: skippedRows.length
           ? `${skippedRows.length} invalid row(s) skipped from ${totalRows} source row(s).`
-          : `Imported ${questions.length} valid question(s) with no skipped rows.`,
+          : null,
         importStatus: questions.length > 0 ? 'ready' : 'invalid',
       });
 

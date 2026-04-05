@@ -8,7 +8,7 @@ export function createMockRepositories({ questionCount = 5, skippedRowCount = 0 
     skippedRowCount,
     importSummary: skippedRowCount
       ? `${skippedRowCount} invalid row(s) skipped from ${questionCount + skippedRowCount} source row(s).`
-      : `Imported ${questionCount} valid question(s) with no skipped rows.`,
+      : null,
   }];
   const questions = Array.from({ length: questionCount }, (_, index) => ({
     id: index + 1,
@@ -31,6 +31,7 @@ export function createMockRepositories({ questionCount = 5, skippedRowCount = 0 
   const sessions = [];
   const answers = [];
   const sessionQuestions = [];
+  const users = [{ id: 1, username: 'tester' }];
 
   return {
     examSetRepository: {
@@ -69,6 +70,7 @@ export function createMockRepositories({ questionCount = 5, skippedRowCount = 0 
             sessionId,
             questionId: question.id,
             questionNumber: index + 1,
+            isMarkedForReview: false,
           });
         });
       },
@@ -78,7 +80,11 @@ export function createMockRepositories({ questionCount = 5, skippedRowCount = 0 
           return null;
         }
         const question = questions.find((item) => item.id === mapping.questionId);
-        return question ? { ...question, questionNumber: mapping.questionNumber } : null;
+        return question ? {
+          ...question,
+          questionNumber: mapping.questionNumber,
+          isMarkedForReview: mapping.isMarkedForReview ?? false,
+        } : null;
       },
       async listForSession(sessionId) {
         return sessionQuestions
@@ -86,12 +92,22 @@ export function createMockRepositories({ questionCount = 5, skippedRowCount = 0 
           .sort((left, right) => left.questionNumber - right.questionNumber)
           .map((item) => {
             const question = questions.find((candidate) => candidate.id === item.questionId);
-            return { ...question, questionNumber: item.questionNumber };
+            return {
+              ...question,
+              questionNumber: item.questionNumber,
+              isMarkedForReview: item.isMarkedForReview ?? false,
+            };
           });
+      },
+      async setMarkForReview(sessionId, questionNumber, isMarked) {
+        const mapping = sessionQuestions.find((item) => item.sessionId === sessionId && item.questionNumber === questionNumber);
+        if (mapping) {
+          mapping.isMarkedForReview = isMarked;
+        }
       },
     },
     sessionRepository: {
-      async create({ examSetId, mode, deadlineAt, totalQuestions }) {
+      async create({ examSetId, mode, deadlineAt, totalQuestions, userId = null }) {
         const session = {
           id: sessions.length + 1,
           examSetId,
@@ -107,12 +123,24 @@ export function createMockRepositories({ questionCount = 5, skippedRowCount = 0 
           unansweredCount: totalQuestions,
           correctPercentage: 0,
           incorrectPercentage: 0,
+          userId,
         };
         sessions.push(session);
         return session;
       },
       async getById(id) {
         return sessions.find((item) => item.id === id) ?? null;
+      },
+      async getByIdAndUserId(id, userId) {
+        return sessions.find((item) => item.id === id && item.userId === userId) ?? null;
+      },
+      async findActiveSessionForUser(userId, examSetId) {
+        return sessions.find((item) => item.userId === userId && item.examSetId === examSetId && item.status === 'in_progress') ?? null;
+      },
+      async listSessionsForExamSetAndUser(userId, examSetId) {
+        return sessions
+          .filter((item) => item.userId === userId && item.examSetId === examSetId)
+          .sort((left, right) => new Date(right.startedAt).getTime() - new Date(left.startedAt).getTime());
       },
       async updateProgress(id, currentQuestionNumber) {
         const session = sessions.find((item) => item.id === id);
@@ -148,6 +176,21 @@ export function createMockRepositories({ questionCount = 5, skippedRowCount = 0 
       },
       async getForSessionQuestion(sessionId, questionNumber) {
         return answers.find((item) => item.sessionId === sessionId && item.questionNumber === questionNumber) ?? null;
+      },
+    },
+    userRepository: {
+      async findOrCreateByUsername(username) {
+        const existing = users.find((item) => item.username === username);
+        if (existing) {
+          return existing;
+        }
+
+        const user = { id: users.length + 1, username };
+        users.push(user);
+        return user;
+      },
+      async getById(userId) {
+        return users.find((item) => item.id === userId) ?? null;
       },
     },
   };

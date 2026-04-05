@@ -12,6 +12,9 @@ const state = {
   selectedOption: null,
   feedback: null,
   result: null,
+  historyExam: null,
+  history: [],
+  resultSource: null,
   deleteMode: false,
   selectedExamsForDelete: new Set(),
 };
@@ -40,6 +43,14 @@ export function summarizeResults(summary) {
     { label: 'Incorrect', value: `${summary.incorrectCount} (${summary.incorrectPercentage}%)` },
     { label: 'Unanswered', value: String(summary.unansweredCount) },
   ];
+}
+
+function formatSessionScore(session) {
+  if (!session.summary) {
+    return 'N/A';
+  }
+
+  return `${session.summary.correctCount}/${session.totalQuestions} (${session.summary.correctPercentage}%)`;
 }
 
 export function getFeedbackTone(feedback) {
@@ -290,7 +301,7 @@ async function logout() {
   try {
     await request('/api/auth/logout', { method: 'POST' });
   } catch (error) {
-    console.error('Logout error:', error);
+    // Ignore logout errors because the client clears its local state either way.
   }
   
   state.userId = null;
@@ -322,6 +333,10 @@ function renderTimer(deadlineAt) {
 function renderExamSelection() {
   showNavbarUser();
   const examCards = state.exams.map((exam) => {
+    const importSummaryHtml = exam.importSummary && !/^Imported \d+ valid question\(s\) with no skipped rows\.$/.test(exam.importSummary)
+      ? `<p>${exam.importSummary}</p>`
+      : '';
+
     if (state.deleteMode) {
       const isSelected = state.selectedExamsForDelete.has(exam.id);
       return `
@@ -333,7 +348,7 @@ function renderExamSelection() {
             <div style="flex: 1;">
               <h2>${exam.title}</h2>
               <p>Questions: ${exam.questionCount}</p>
-              <p>${exam.importSummary ?? 'Imported with no warnings.'}</p>
+              ${importSummaryHtml}
             </div>
           </div>
         </article>
@@ -343,10 +358,11 @@ function renderExamSelection() {
       <article class="exam-card">
         <h2>${exam.title}</h2>
         <p>Questions: ${exam.questionCount}</p>
-        <p>${exam.importSummary ?? 'Imported with no warnings.'}</p>
+        ${importSummaryHtml}
         <div class="actions">
           <button data-start="${exam.id}:practice">Practice Mode</button>
           <button class="secondary" data-start="${exam.id}:exam">Exam Mode</button>
+          <button class="secondary" data-history="${exam.id}">History</button>
         </div>
       </article>
     `;
@@ -366,7 +382,6 @@ function renderExamSelection() {
         ${cancelButton}
       </div>
       <h2>Select an exam set</h2>
-      <p>Imported exams may be shorter than 200 questions if invalid CSV rows were skipped during import.</p>
       <div class="grid exam-grid">${examCards || '<p>No ready exam sets are available.</p>'}</div>
     </section>
   `;
@@ -397,6 +412,14 @@ function renderExamSelection() {
         const examSetId = Number(parts[0]);
         const mode = parts[1].trim();
         await startSession({ examSetId, mode });
+      });
+    });
+
+    qs('app').querySelectorAll('[data-history]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const examSetId = Number(button.dataset.history);
+        const exam = state.exams.find((item) => item.id === examSetId);
+        await loadExamHistory(examSetId, exam?.title ?? 'Exam history');
       });
     });
   }
@@ -545,20 +568,20 @@ function renderQuestion() {
   });
 }
 
-function renderAllQuestions() {
-  showNavbarUser();
-  if (!state.allQuestions || state.allQuestions.length === 0) {
-    showToast('No questions loaded', 'error');
-    return;
+function buildQuestionIndexMarkup(questions, mode) {
+  if (!questions || questions.length === 0) {
+    return '';
   }
 
-  // Build question index with mark icon and answered/correct status
-  const indexMarkup = state.allQuestions.map((q, i) => {
+  const indexMarkup = questions.map((q, i) => {
     const markIcon = q.isMarkedForReview ? '★' : '';
     let statusClass = '';
     let statusText = '';
-    
-    if (state.session.mode === 'practice') {
+
+    if (q.result) {
+      statusClass = q.result;
+      statusText = q.result;
+    } else if (mode === 'practice') {
       // In practice mode: show correct/incorrect/unanswered
       if (!q.selectedOption) {
         statusClass = 'unanswered';
@@ -575,9 +598,28 @@ function renderAllQuestions() {
       statusClass = q.selectedOption ? 'answered' : 'unanswered';
       statusText = q.selectedOption ? 'answered' : 'unanswered';
     }
-    
+
     return `<button class="question-index-btn${q.isMarkedForReview ? ' marked' : ''} ${statusClass}" data-jump-to="${i + 1}" title="Q${i + 1}: ${statusText}">${i + 1}${markIcon ? ' <span class=\'mark-icon\'>' + markIcon + '</span>' : ''}</button>`;
   }).join('');
+
+  return `
+      <nav class="question-index">
+        <p>Question index:</p>
+        <div class="index-buttons">
+          ${indexMarkup}
+        </div>
+      </nav>
+  `;
+}
+
+function renderAllQuestions() {
+  showNavbarUser();
+  if (!state.allQuestions || state.allQuestions.length === 0) {
+    showToast('No questions loaded', 'error');
+    return;
+  }
+
+  const indexMarkup = buildQuestionIndexMarkup(state.allQuestions, state.session.mode);
 
   // Build all questions
   const questionsMarkup = state.allQuestions.map((question) => {
@@ -651,12 +693,7 @@ function renderAllQuestions() {
         <p>Total Questions: <strong>${state.allQuestions.length}</strong></p>
       </div>
       
-      <nav class="question-index">
-        <p>Jump to question:</p>
-        <div class="index-buttons">
-          ${indexMarkup}
-        </div>
-      </nav>
+      ${indexMarkup}
 
       <div class="questions-list">
         ${questionsMarkup}
@@ -723,6 +760,7 @@ function renderAllQuestions() {
   const completeBtn = qs('app').querySelector('[data-complete-session]');
   if (completeBtn) {
     completeBtn.addEventListener('click', async () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       await completeSession();
     });
   }
@@ -762,15 +800,45 @@ function renderAllQuestions() {
 }
 
 function buildReviewMarkup(item) {
+  const optionsMarkup = Array.isArray(item.options)
+    ? item.options.map((option) => {
+      const classes = ['review-option'];
+      const isSelected = option.key === item.selectedOption;
+      const isCorrect = option.key === item.correctOption;
+
+      if (isSelected && isCorrect) {
+        classes.push('selected-correct');
+      } else if (isSelected) {
+        classes.push('selected-incorrect');
+      } else if (isCorrect) {
+        classes.push('correct');
+      }
+
+      const badges = [];
+      if (isSelected) {
+        badges.push(`<span class="review-option-badge ${isCorrect ? 'correct' : 'incorrect'}">Your answer</span>`);
+      }
+      if (isCorrect && !isSelected) {
+        badges.push('<span class="review-option-badge correct">Correct answer</span>');
+      }
+
+      return `
+        <li class="${classes.join(' ')}">
+          <strong>${option.key}.</strong> ${formatBulletPoints(option.label ?? '')}
+          ${badges.join('')}
+        </li>
+      `;
+    }).join('')
+    : '';
+
   return `
-    <article class="review-card">
+    <article class="review-card" id="question-${item.questionNumber}">
       <div class="meta">
         <h3>Question ${item.questionNumber}</h3>
         <span class="tag ${item.result}">${item.result}</span>
       </div>
       <p>${formatBulletPoints(item.prompt ?? '')}</p>
-      <p><strong>Your answer:</strong> ${item.selectedOption ?? 'Not answered'}</p>
-      <p><strong>Correct answer:</strong> ${item.correctOption}</p>
+      <ul class="review-options">${optionsMarkup}</ul>
       <p>${formatBulletPoints(item.explanation)}</p>
     </article>
   `;
@@ -786,21 +854,155 @@ function renderResults() {
     .join('');
   const review = state.result.reviewItems.map(buildReviewMarkup).join('');
 
+  const importSummaryText = state.session?.importSummary;
+  const importSummaryHtml = importSummaryText && !/^Imported \d+ valid question\(s\) with no skipped rows\.$/.test(importSummaryText)
+    ? `<p class="import-note">${importSummaryText}</p>`
+    : '';
+
+  const resultQuestions = Array.isArray(state.allQuestions) && state.allQuestions.length > 0
+    ? state.allQuestions
+    : state.result.reviewItems;
+  const indexMarkup = buildQuestionIndexMarkup(resultQuestions, state.session?.mode);
+
+  const startedAtText = state.result?.startedAt ? new Date(state.result.startedAt).toLocaleString() : null;
+  const completedAtText = state.result?.completedAt ? new Date(state.result.completedAt).toLocaleString() : null;
+  const sessionModeText = state.result?.mode === 'practice' ? 'Practice' : 'Exam';
+
   qs('app').innerHTML = `
     <section>
       <h2>Session results</h2>
-      ${state.session?.importSummary ? `<p class="import-note">${state.session.importSummary}</p>` : ''}
+      <div class="meta">
+        <p>Mode: <strong>${sessionModeText}</strong></p>
+        ${startedAtText ? `<p>Started: <strong>${startedAtText}</strong></p>` : ''}
+        ${completedAtText ? `<p>Completed: <strong>${completedAtText}</strong></p>` : ''}
+      </div>
+      ${importSummaryHtml}
+      ${indexMarkup}
       <div class="summary-grid">${tiles}</div>
+      <div class="actions">
+        ${state.resultSource === 'history'
+          ? '<button class="secondary" data-history-back>Back to history</button>'
+          : '<button data-home>Back to exam list</button>'}
+      </div>
+      <div class="review-list">${review}</div>
+    </section>
+  `;
+
+  const historyBackButton = qs('app').querySelector('[data-history-back]');
+  if (historyBackButton) {
+    historyBackButton.addEventListener('click', () => {
+      renderHistory();
+    });
+  }
+
+  qs('app').querySelectorAll('.question-index-btn').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      const questionNumber = Number(event.currentTarget.dataset.jumpTo);
+      const element = document.getElementById(`question-${questionNumber}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+
+  const homeButton = qs('app').querySelector('[data-home]');
+  if (homeButton) {
+    homeButton.addEventListener('click', async () => {
+      clearState();
+      await loadExamSets();
+    });
+  }
+}
+
+async function loadExamHistory(examSetId, examTitle) {
+  try {
+    const payload = await request(`/api/exams/${examSetId}/sessions`);
+    state.historyExam = { id: examSetId, title: examTitle };
+    state.history = Array.isArray(payload.items) ? payload.items : [];
+    state.result = null;
+    state.resultSource = null;
+    renderHistory();
+  } catch (error) {
+    showToast(`Unable to load history: ${error.message}`, 'error');
+  }
+}
+
+async function loadSessionResult(sessionId) {
+  try {
+    const payload = await request(`/api/sessions/${sessionId}/results`);
+    state.result = payload;
+    state.session = {
+      id: sessionId,
+      examSetId: payload.examSetId,
+      mode: payload.mode,
+      importSummary: payload.importSummary,
+    };
+    state.allQuestions = [];
+    state.resultSource = 'history';
+    renderResults();
+  } catch (error) {
+    showToast(`Unable to load session result: ${error.message}`, 'error');
+  }
+}
+
+function renderHistory() {
+  showNavbarUser();
+  const exam = state.historyExam;
+  const rows = state.history.map((session) => {
+    const startedAt = session.startedAt ? new Date(session.startedAt).toLocaleString() : 'Unknown';
+    const completedAt = session.completedAt ? new Date(session.completedAt).toLocaleString() : 'N/A';
+    const scoreText = formatSessionScore(session);
+    const modeText = session.mode === 'practice' ? 'Practice' : 'Exam';
+    const rowClassName = session.canReview ? 'history-row-clickable' : 'history-row-disabled';
+    return `
+      <tr class="${rowClassName}" ${session.canReview ? `data-session-id="${session.id}"` : ''}>
+        <td>${startedAt}</td>
+        <td>${modeText}</td>
+        <td>${session.status}</td>
+        <td>${scoreText}</td>
+        <td>${completedAt}</td>
+      </tr>
+    `;
+  }).join('');
+
+  qs('app').innerHTML = `
+    <section>
+      <h2>${exam?.title ?? 'Exam'} history</h2>
       <div class="actions">
         <button data-home>Back to exam list</button>
       </div>
-      <div class="review-list">${review}</div>
+      ${state.history.length === 0 ? '<p>No previous practice or exam sessions found for this exam.</p>' : `
+        <div class="history-table-wrapper">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Started</th>
+                <th>Mode</th>
+                <th>Status</th>
+                <th>Score</th>
+                <th>Completed</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+          <p class="history-hint">Click a completed or expired row to view session details.</p>
+        </div>
+      `}
     </section>
   `;
 
   qs('app').querySelector('[data-home]').addEventListener('click', async () => {
     clearState();
     await loadExamSets();
+  });
+
+  qs('app').querySelectorAll('tbody tr[data-session-id]').forEach((row) => {
+    row.addEventListener('click', async () => {
+      const sessionId = Number(row.dataset.sessionId);
+      await loadSessionResult(sessionId);
+    });
   });
 }
 
@@ -811,6 +1013,9 @@ function clearState() {
   state.selectedOption = null;
   state.feedback = null;
   state.result = null;
+  state.historyExam = null;
+  state.history = [];
+  state.resultSource = null;
   clearPersistedSessionId();
 }
 
@@ -823,16 +1028,15 @@ async function loadExamSets() {
 async function startSession({ examSetId, mode }) {
   state.result = null;
   state.feedback = null;
-    console.log('[startSession] examSetId:', examSetId, 'mode:', mode);
+  state.resultSource = null;
   const session = await request('/api/sessions', {
     method: 'POST',
     body: JSON.stringify({ examSetId, mode }),
   });
-    console.log('[startSession] session:', session);
   state.session = session;
   syncPersistedSession(session);
   renderTimer(session.deadlineAt);
-    await loadAllQuestions();
+  await loadAllQuestions();
 }
 
 async function restoreSession(sessionId) {
@@ -850,43 +1054,39 @@ async function restoreSession(sessionId) {
 
 async function loadAllQuestions() {
   try {
-      console.log('[loadAllQuestions] session.id:', state.session?.id);
     const payload = await request(`/api/sessions/${state.session.id}/questions`);
-      console.log('[loadAllQuestions] payload:', payload);
     if (payload.summary) {
       state.result = payload;
+      state.resultSource = 'session';
       renderResults();
       return;
     }
     state.allQuestions = payload.questions || [];
-      console.log('[loadAllQuestions] state.allQuestions:', state.allQuestions);
     renderTimer(payload.deadlineAt);
     renderAllQuestions();
   } catch (error) {
     showToast(`Error loading questions: ${error.message}`, 'error');
-      console.error('[loadAllQuestions] error:', error);
   }
 }
 
 async function loadQuestion(questionNumber) {
   state.selectedOption = null;
   state.feedback = null;
-    console.log('[loadQuestion] questionNumber:', questionNumber);
   const payload = await request(`/api/sessions/${state.session.id}/questions/${questionNumber}`);
-    console.log('[loadQuestion] payload:', payload);
   if (payload.summary) {
     state.result = payload;
+    state.resultSource = 'session';
     renderResults();
     return;
   }
   state.question = payload;
-    console.log('[loadQuestion] state.question:', state.question);
   renderTimer(payload.deadlineAt);
   renderQuestion();
 }
 
 async function completeSession() {
   state.result = await request(`/api/sessions/${state.session.id}/complete`, { method: 'POST' });
+  state.resultSource = 'session';
   renderResults();
 }
 
@@ -1017,22 +1217,16 @@ async function clearAllExams() {
     showToast('Deleting selected exams...', 'info');
     // Delete each selected exam
     const examIds = Array.from(state.selectedExamsForDelete);
-    console.log('Deleting exams:', examIds);
     
     for (const examId of examIds) {
-      console.log(`Deleting exam ${examId}...`);
-      const response = await request(`/api/exams/${examId}`, { method: 'DELETE' });
-      console.log(`Exam ${examId} deleted:`, response);
+      await request(`/api/exams/${examId}`, { method: 'DELETE' });
     }
     
     showToast(`${count} ${examWord} deleted successfully`, 'success');
     state.deleteMode = false;
     state.selectedExamsForDelete.clear();
-    console.log('Reloading exam sets...');
     await loadExamSets();
-    console.log('Exam sets reloaded');
   } catch (error) {
-    console.error('Delete error:', error);
     showToast(`Delete failed: ${error.message}`, 'error');
   }
 }

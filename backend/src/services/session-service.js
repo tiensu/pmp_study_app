@@ -54,6 +54,50 @@ function toSessionSummary(session) {
   };
 }
 
+function buildStoredSummary(session) {
+  if (session.status === 'in_progress') {
+    return null;
+  }
+
+  return {
+    correctCount: session.correctCount,
+    incorrectCount: session.incorrectCount,
+    unansweredCount: session.unansweredCount,
+    correctPercentage: Number(session.correctPercentage),
+    incorrectPercentage: Number(session.incorrectPercentage),
+  };
+}
+
+function buildResultPayload(session, reviewItems, importSummary) {
+  return {
+    sessionId: session.id,
+    examSetId: session.examSetId,
+    mode: session.mode,
+    status: session.status,
+    totalQuestions: session.totalQuestions,
+    startedAt: session.startedAt,
+    completedAt: session.completedAt,
+    importSummary,
+    summary: buildStoredSummary(session),
+    reviewItems,
+  };
+}
+
+function buildHistoryEntry(session) {
+  return {
+    id: session.id,
+    examSetId: session.examSetId,
+    mode: session.mode,
+    status: session.status,
+    totalQuestions: session.totalQuestions,
+    currentQuestionNumber: session.currentQuestionNumber,
+    startedAt: session.startedAt,
+    completedAt: session.completedAt,
+    summary: buildStoredSummary(session),
+    canReview: session.status !== 'in_progress',
+  };
+}
+
 export function createSessionService({
   examSetRepository = createExamSetRepository(),
   questionRepository = createQuestionRepository(),
@@ -132,6 +176,11 @@ export function createSessionService({
       }
       const examSet = await examSetRepository.getById(session.examSetId);
       return toSessionSummary({ ...session, importSummary: examSet?.importSummary ?? null });
+    },
+
+    async listSessionsForExamSet(examSetId, userId) {
+      const sessions = await sessionRepository.listSessionsForExamSetAndUser(userId, examSetId);
+      return sessions.map(buildHistoryEntry);
     },
 
     async getQuestion(sessionId, questionNumber) {
@@ -251,48 +300,34 @@ export function createSessionService({
       const answers = await sessionAnswerRepository.listForSession(sessionId);
       const summary = calculateSummary(questions, answers);
       const finalized = await sessionRepository.finalize(sessionId, summary, expired ? 'expired' : 'completed');
+      const examSet = await examSetRepository.getById(finalized.examSetId);
 
-      return {
-        sessionId: finalized.id,
-        status: finalized.status,
-        totalQuestions: finalized.totalQuestions,
-        summary: {
-          correctCount: finalized.correctCount,
-          incorrectCount: finalized.incorrectCount,
-          unansweredCount: finalized.unansweredCount,
-          correctPercentage: Number(finalized.correctPercentage),
-          incorrectPercentage: Number(finalized.incorrectPercentage),
-        },
-        reviewItems: summary.reviewItems,
-      };
+      return buildResultPayload(finalized, summary.reviewItems, examSet?.importSummary ?? null);
     },
 
-    async getResults(sessionId) {
+    async getResults(sessionId, { finalizeInProgress = true } = {}) {
       const session = await sessionRepository.getById(sessionId);
       if (!session) {
         throw new Error('Session not found.');
       }
 
       if (session.status === 'in_progress') {
+        if (!finalizeInProgress) {
+          throw new Error('Session results are not available until the session is completed.');
+        }
         return this.completeSession(sessionId, { expired: session.mode === 'exam' && hasExpired(session.deadlineAt) });
       }
 
       const questions = await sessionQuestionRepository.listForSession(sessionId);
       const answers = await sessionAnswerRepository.listForSession(sessionId);
+      const examSet = await examSetRepository.getById(session.examSetId);
       const summary = calculateSummary(questions, answers);
-      return {
-        sessionId: session.id,
-        status: session.status,
-        totalQuestions: session.totalQuestions,
-        summary: {
-          correctCount: session.correctCount,
-          incorrectCount: session.incorrectCount,
-          unansweredCount: session.unansweredCount,
-          correctPercentage: Number(session.correctPercentage),
-          incorrectPercentage: Number(session.incorrectPercentage),
-        },
-        reviewItems: summary.reviewItems,
-      };
+
+      return buildResultPayload(
+        session,
+        summary.reviewItems,
+        examSet?.importSummary ?? null,
+      );
     },
   };
 }

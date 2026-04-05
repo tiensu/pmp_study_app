@@ -6,21 +6,29 @@ import { createMockRepositories } from '../unit/test-helpers.js';
 import { startTestServer } from './test-server.js';
 
 test('Exam mode answer submission hides correctness until completion', async () => {
-  const service = createSessionService(createMockRepositories());
-  const server = createApp({ sessionService: service });
+  const repositories = createMockRepositories();
+  const service = createSessionService(repositories);
+  const authHeaders = { 'Content-Type': 'application/json', 'x-user-id': '1' };
+  const server = createApp({
+    sessionService: service,
+    examSetRepository: repositories.examSetRepository,
+    questionRepository: repositories.questionRepository,
+    sessionRepository: repositories.sessionRepository,
+    userRepository: repositories.userRepository,
+  });
   const testServer = await startTestServer(server);
 
   try {
     const sessionResponse = await fetch(`${testServer.baseUrl}/api/sessions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({ examSetId: 1, mode: 'exam' }),
     });
     const session = await sessionResponse.json();
 
     const answerResponse = await fetch(`${testServer.baseUrl}/api/sessions/${session.id}/answers`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({ questionNumber: 1, selectedOption: 'B' }),
     });
     const answerPayload = await answerResponse.json();
@@ -29,7 +37,9 @@ test('Exam mode answer submission hides correctness until completion', async () 
     assert.equal('correctOption' in answerPayload, false);
     assert.ok(answerPayload.deadlineAt);
 
-    const resumeResponse = await fetch(`${testServer.baseUrl}/api/sessions/${session.id}`);
+    const resumeResponse = await fetch(`${testServer.baseUrl}/api/sessions/${session.id}`, {
+      headers: authHeaders,
+    });
     const resumePayload = await resumeResponse.json();
     assert.equal(resumePayload.mode, 'exam');
     assert.equal(resumePayload.status, 'in_progress');

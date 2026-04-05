@@ -14,6 +14,10 @@ function jsonResponse(body, status = 200) {
   };
 }
 
+function getAuthError() {
+  return jsonResponse({ error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, 401);
+}
+
 export function createExamsRoutes({ 
   sessionService,
   examSetRepository = createExamSetRepository(),
@@ -34,6 +38,21 @@ export function createExamsRoutes({
       await questionRepository.deleteAll();
       await examSetRepository.deleteAll();
       return jsonResponse({ message: 'All exams and sessions cleared' });
+    }
+
+    const examSessionHistoryMatch = request.pathname.match(/^\/api\/exams\/(\d+)\/sessions$/);
+    if (request.method === 'GET' && examSessionHistoryMatch) {
+      const userId = request.headers['x-user-id'] ? Number(request.headers['x-user-id']) : null;
+      if (!userId) return getAuthError();
+
+      const examSetId = Number(examSessionHistoryMatch[1]);
+      const exam = await examSetRepository.getById(examSetId);
+      if (!exam) {
+        return jsonResponse({ error: { message: 'Exam not found' } }, 404);
+      }
+
+      const sessions = await sessionService.listSessionsForExamSet(examSetId, userId);
+      return jsonResponse({ items: sessions });
     }
 
     // Delete individual exam by ID

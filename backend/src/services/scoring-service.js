@@ -7,6 +7,16 @@
   let unansweredCount = 0;
 
   const reviewItems = questions.map((question) => {
+    const optionLabels = {
+      A: question.optionA,
+      B: question.optionB,
+      C: question.optionC,
+      D: question.optionD,
+    };
+    const options = Object.entries(optionLabels).map(([key, label]) => ({
+      key,
+      label,
+    }));
     const answer = answerByQuestion.get(question.questionNumber);
     if (!answer || !answer.selectedOption) {
       unansweredCount += 1;
@@ -15,7 +25,10 @@
         questionNumber: question.questionNumber,
         prompt: question.prompt,
         selectedOption: null,
+        selectedOptionLabel: null,
         correctOption: question.correctOption,
+        correctOptionLabel: optionLabels[question.correctOption] ?? null,
+        options,
         explanation: question.explanation,
         result: 'unanswered',
       };
@@ -32,7 +45,10 @@
       questionNumber: question.questionNumber,
       prompt: question.prompt,
       selectedOption: answer.selectedOption,
+      selectedOptionLabel: optionLabels[answer.selectedOption] ?? null,
       correctOption: question.correctOption,
+      correctOptionLabel: optionLabels[question.correctOption] ?? null,
+      options,
       explanation: question.explanation,
       result: isCorrect ? 'correct' : 'incorrect',
     };

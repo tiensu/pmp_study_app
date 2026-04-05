@@ -6,14 +6,22 @@ import { createMockRepositories } from '../unit/test-helpers.js';
 import { startTestServer } from './test-server.js';
 
 test('GET /api/exams and session lifecycle endpoints work for the MVP flow', async () => {
+  const repositories = createMockRepositories();
   const service = createSessionService({
-    ...createMockRepositories(),
+    ...repositories,
     random: (() => {
       const values = [0.75, 0.25, 0.5, 0.1];
       return () => values.shift() ?? 0;
     })(),
   });
-  const server = createApp({ sessionService: service });
+  const authHeaders = { 'Content-Type': 'application/json', 'x-user-id': '1' };
+  const server = createApp({
+    sessionService: service,
+    examSetRepository: repositories.examSetRepository,
+    questionRepository: repositories.questionRepository,
+    sessionRepository: repositories.sessionRepository,
+    userRepository: repositories.userRepository,
+  });
   const testServer = await startTestServer(server);
 
   try {
@@ -24,26 +32,40 @@ test('GET /api/exams and session lifecycle endpoints work for the MVP flow', asy
 
     const sessionResponse = await fetch(`${testServer.baseUrl}/api/sessions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({ examSetId: 1, mode: 'practice' }),
     });
     const sessionPayload = await sessionResponse.json();
     assert.equal(sessionPayload.totalQuestions, 5);
 
-    const questionResponse = await fetch(`${testServer.baseUrl}/api/sessions/${sessionPayload.id}/questions/1`);
+    const questionResponse = await fetch(`${testServer.baseUrl}/api/sessions/${sessionPayload.id}/questions/1`, {
+      headers: authHeaders,
+    });
     const questionPayload = await questionResponse.json();
     assert.equal(questionPayload.questionNumber, 1);
     assert.equal(questionPayload.prompt, 'Question 3');
 
-    const resumeResponse = await fetch(`${testServer.baseUrl}/api/sessions/${sessionPayload.id}`);
+    const resumeResponse = await fetch(`${testServer.baseUrl}/api/sessions/${sessionPayload.id}`, {
+      headers: authHeaders,
+    });
     const resumePayload = await resumeResponse.json();
     assert.equal(resumePayload.status, 'in_progress');
     assert.equal(resumePayload.totalQuestions, 5);
 
-    const completeResponse = await fetch(`${testServer.baseUrl}/api/sessions/${sessionPayload.id}/complete`, { method: 'POST' });
+    const completeResponse = await fetch(`${testServer.baseUrl}/api/sessions/${sessionPayload.id}/complete`, {
+      method: 'POST',
+      headers: authHeaders,
+    });
     const completePayload = await completeResponse.json();
     assert.equal(completePayload.totalQuestions, 5);
     assert.equal(completePayload.summary.unansweredCount, 5);
+
+    const historyResponse = await fetch(`${testServer.baseUrl}/api/exams/1/sessions`, {
+      headers: authHeaders,
+    });
+    const historyPayload = await historyResponse.json();
+    assert.equal(historyPayload.items.length, 1);
+    assert.equal(historyPayload.items[0].summary.unansweredCount, 5);
   } finally {
     await testServer.close();
   }
