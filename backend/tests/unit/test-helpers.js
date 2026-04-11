@@ -142,6 +142,24 @@ export function createMockRepositories({ questionCount = 5, skippedRowCount = 0 
           .filter((item) => item.userId === userId && item.examSetId === examSetId)
           .sort((left, right) => new Date(right.startedAt).getTime() - new Date(left.startedAt).getTime());
       },
+      async deleteForExamSetAndUser(userId, examSetId) {
+        let deletedCount = 0;
+        for (let index = sessions.length - 1; index >= 0; index -= 1) {
+          if (sessions[index].userId === userId && sessions[index].examSetId === examSetId) {
+            sessions.splice(index, 1);
+            deletedCount += 1;
+          }
+        }
+        return deletedCount;
+      },
+      async deleteByIdAndUserId(sessionId, userId) {
+        const index = sessions.findIndex((item) => item.id === sessionId && item.userId === userId);
+        if (index === -1) {
+          return 0;
+        }
+        sessions.splice(index, 1);
+        return 1;
+      },
       async updateProgress(id, currentQuestionNumber) {
         const session = sessions.find((item) => item.id === id);
         session.currentQuestionNumber = currentQuestionNumber;

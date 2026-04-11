@@ -95,6 +95,22 @@ export function createSessionRepository(database = { query }) {
       return result.rows;
     },
 
+    async deleteForExamSetAndUser(userId, examSetId) {
+      const result = await database.query(
+        'DELETE FROM study_sessions WHERE user_id = $1 AND exam_set_id = $2',
+        [userId, examSetId],
+      );
+      return result.rowCount;
+    },
+
+    async deleteByIdAndUserId(sessionId, userId) {
+      const result = await database.query(
+        'DELETE FROM study_sessions WHERE id = $1 AND user_id = $2',
+        [sessionId, userId],
+      );
+      return result.rowCount;
+    },
+
     async updateProgress(sessionId, currentQuestionNumber) {
       await database.query('UPDATE study_sessions SET current_question_number = $2 WHERE id = $1', [sessionId, currentQuestionNumber]);
     },

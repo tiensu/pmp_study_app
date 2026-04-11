@@ -14,6 +14,7 @@ const state = {
   result: null,
   historyExam: null,
   history: [],
+  selectedHistorySessions: new Set(),
   resultSource: null,
   deleteMode: false,
   selectedExamsForDelete: new Set(),
@@ -972,6 +973,7 @@ async function loadExamHistory(examSetId, examTitle) {
     const payload = await request(`/api/exams/${examSetId}/sessions`);
     state.historyExam = { id: examSetId, title: examTitle };
     state.history = Array.isArray(payload.items) ? payload.items : [];
+    state.selectedHistorySessions.clear();
     state.result = null;
     state.resultSource = null;
     renderHistory();
@@ -998,17 +1000,88 @@ async function loadSessionResult(sessionId) {
   }
 }
 
+async function clearExamHistory() {
+  if (!state.historyExam) {
+    return;
+  }
+
+  const confirmed = await showConfirmDialog(`Clear all history for "${state.historyExam.title}"?\n\nThis action cannot be undone.`);
+  if (!confirmed) {
+    return;
+  }
+
+  const persistedSessionId = readPersistedSessionId();
+  const clearsPersistedSession = state.history.some((session) => String(session.id) === persistedSessionId);
+
+  try {
+    const payload = await request(`/api/exams/${state.historyExam.id}/sessions`, { method: 'DELETE' });
+    if (clearsPersistedSession) {
+      clearPersistedSessionId();
+    }
+    state.history = [];
+    state.selectedHistorySessions.clear();
+    state.result = null;
+    state.resultSource = null;
+    renderHistory();
+    showToast(`History cleared (${payload.deletedCount} session${payload.deletedCount === 1 ? '' : 's'} deleted).`, 'success');
+  } catch (error) {
+    showToast(`Unable to clear history: ${error.message}`, 'error');
+  }
+}
+
+async function deleteSelectedHistorySessions() {
+  const sessionIds = Array.from(state.selectedHistorySessions);
+  if (sessionIds.length === 0) {
+    showToast('Select at least one history item to delete.', 'info');
+    return;
+  }
+
+  const sessionWord = sessionIds.length === 1 ? 'item' : 'items';
+  const confirmed = await showConfirmDialog(`Delete ${sessionIds.length} selected history ${sessionWord}?\n\nThis action cannot be undone.`);
+  if (!confirmed) {
+    return;
+  }
+
+  const persistedSessionId = readPersistedSessionId();
+
+  try {
+    for (const sessionId of sessionIds) {
+      await request(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+    }
+
+    if (state.selectedHistorySessions.has(persistedSessionId)) {
+      clearPersistedSessionId();
+    }
+
+    const deletedIds = new Set(sessionIds);
+    state.history = state.history.filter((session) => !deletedIds.has(String(session.id)));
+    state.selectedHistorySessions.clear();
+    state.result = null;
+    state.resultSource = null;
+    renderHistory();
+    showToast(`${sessionIds.length} history ${sessionWord} deleted.`, 'success');
+  } catch (error) {
+    showToast(`Unable to delete selected history: ${error.message}`, 'error');
+  }
+}
+
 function renderHistory() {
   showNavbarUser();
   const exam = state.historyExam;
+  const selectedCount = state.selectedHistorySessions.size;
   const rows = state.history.map((session) => {
     const startedAt = session.startedAt ? new Date(session.startedAt).toLocaleString() : 'Unknown';
     const completedAt = session.completedAt ? new Date(session.completedAt).toLocaleString() : 'N/A';
     const scoreText = formatSessionScore(session);
     const modeText = session.mode === 'practice' ? 'Practice' : 'Exam';
     const rowClassName = session.canReview ? 'history-row-clickable' : 'history-row-disabled';
+    const sessionId = String(session.id);
+    const checked = state.selectedHistorySessions.has(sessionId) ? 'checked' : '';
     return `
       <tr class="${rowClassName}" ${session.canReview ? `data-session-id="${session.id}"` : ''}>
+        <td>
+          <input type="checkbox" data-history-select="${sessionId}" aria-label="Select history item from ${startedAt}" ${checked}>
+        </td>
         <td>${startedAt}</td>
         <td>${modeText}</td>
         <td>${session.status}</td>
@@ -1023,12 +1096,15 @@ function renderHistory() {
       <h2>${exam?.title ?? 'Exam'} history</h2>
       <div class="actions">
         <button data-home>Back to exam list</button>
+        <button class="secondary" data-delete-selected-history ${selectedCount === 0 ? 'disabled' : ''}>Delete selected${selectedCount ? ` (${selectedCount})` : ''}</button>
+        <button class="secondary" data-clear-history ${state.history.length === 0 ? 'disabled' : ''}>Clear history</button>
       </div>
       ${state.history.length === 0 ? '<p>No previous practice or exam sessions found for this exam.</p>' : `
         <div class="history-table-wrapper">
           <table class="history-table">
             <thead>
               <tr>
+                <th>Select</th>
                 <th>Started</th>
                 <th>Mode</th>
                 <th>Status</th>
@@ -1040,7 +1116,7 @@ function renderHistory() {
               ${rows}
             </tbody>
           </table>
-          <p class="history-hint">Click a completed or expired row to view session details.</p>
+          <p class="history-hint">Select rows to delete them, or click a completed or expired row to view session details.</p>
         </div>
       `}
     </section>
@@ -1049,6 +1125,24 @@ function renderHistory() {
   qs('app').querySelector('[data-home]').addEventListener('click', async () => {
     clearState();
     await loadExamSets();
+  });
+
+  qs('app').querySelector('[data-clear-history]').addEventListener('click', clearExamHistory);
+  qs('app').querySelector('[data-delete-selected-history]').addEventListener('click', deleteSelectedHistorySessions);
+
+  qs('app').querySelectorAll('[data-history-select]').forEach((checkbox) => {
+    checkbox.addEventListener('click', (event) => {
+      event.stopPropagation();
+    });
+    checkbox.addEventListener('change', (event) => {
+      const sessionId = event.target.dataset.historySelect;
+      if (event.target.checked) {
+        state.selectedHistorySessions.add(sessionId);
+      } else {
+        state.selectedHistorySessions.delete(sessionId);
+      }
+      renderHistory();
+    });
   });
 
   qs('app').querySelectorAll('tbody tr[data-session-id]').forEach((row) => {
@@ -1068,6 +1162,7 @@ function clearState() {
   state.result = null;
   state.historyExam = null;
   state.history = [];
+  state.selectedHistorySessions.clear();
   state.resultSource = null;
   clearPersistedSessionId();
 }

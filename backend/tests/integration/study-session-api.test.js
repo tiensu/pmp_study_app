@@ -66,6 +66,43 @@ test('GET /api/exams and session lifecycle endpoints work for the MVP flow', asy
     const historyPayload = await historyResponse.json();
     assert.equal(historyPayload.items.length, 1);
     assert.equal(historyPayload.items[0].summary.unansweredCount, 5);
+
+    const deleteSessionResponse = await fetch(`${testServer.baseUrl}/api/sessions/${sessionPayload.id}`, {
+      method: 'DELETE',
+      headers: authHeaders,
+    });
+    const deleteSessionPayload = await deleteSessionResponse.json();
+    assert.equal(deleteSessionPayload.deletedCount, 1);
+
+    const deletedSessionHistoryResponse = await fetch(`${testServer.baseUrl}/api/exams/1/sessions`, {
+      headers: authHeaders,
+    });
+    const deletedSessionHistoryPayload = await deletedSessionHistoryResponse.json();
+    assert.equal(deletedSessionHistoryPayload.items.length, 0);
+
+    const secondSessionResponse = await fetch(`${testServer.baseUrl}/api/sessions`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ examSetId: 1, mode: 'practice' }),
+    });
+    const secondSessionPayload = await secondSessionResponse.json();
+    await fetch(`${testServer.baseUrl}/api/sessions/${secondSessionPayload.id}/complete`, {
+      method: 'POST',
+      headers: authHeaders,
+    });
+
+    const deleteHistoryResponse = await fetch(`${testServer.baseUrl}/api/exams/1/sessions`, {
+      method: 'DELETE',
+      headers: authHeaders,
+    });
+    const deleteHistoryPayload = await deleteHistoryResponse.json();
+    assert.equal(deleteHistoryPayload.deletedCount, 1);
+
+    const clearedHistoryResponse = await fetch(`${testServer.baseUrl}/api/exams/1/sessions`, {
+      headers: authHeaders,
+    });
+    const clearedHistoryPayload = await clearedHistoryResponse.json();
+    assert.equal(clearedHistoryPayload.items.length, 0);
   } finally {
     await testServer.close();
   }

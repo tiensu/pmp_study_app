@@ -1,5 +1,6 @@
 :root {
   color-scheme: light;
+  --question-scroll-offset: 150px;
   --bg: #f5f0e8;
   --surface: #fffdf9;
   --surface-strong: #f4e6d4;
@@ -1173,7 +1174,11 @@ button:disabled {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1.5rem;
-  scroll-margin-top: 120px;
+  scroll-margin-top: var(--question-scroll-offset);
+}
+
+.review-card {
+  scroll-margin-top: var(--question-scroll-offset);
 }
 
 .question-header {
@@ -1267,6 +1272,10 @@ button:disabled {
 
 /* Mobile Responsive - All Questions View */
 @media (max-width: 720px) {
+  :root {
+    --question-scroll-offset: 190px;
+  }
+
   .all-questions-container {
     gap: 1rem;
   }

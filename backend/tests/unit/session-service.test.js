@@ -101,6 +101,21 @@ test('listSessionsForExamSet returns history entries with stored summaries', asy
   assert.equal(history[0].summary.unansweredCount, 4);
 });
 
+test('clearSessionsForExamSet deletes only the selected user history', async () => {
+  const repositories = createMockRepositories();
+  const service = createSessionService(repositories);
+  await service.startSession({ examSetId: 1, mode: 'practice' }, 1);
+  await service.startSession({ examSetId: 1, mode: 'practice' }, 2);
+
+  const result = await service.clearSessionsForExamSet(1, 1);
+  const userHistory = await service.listSessionsForExamSet(1, 1);
+  const otherUserHistory = await service.listSessionsForExamSet(1, 2);
+
+  assert.equal(result.deletedCount, 1);
+  assert.equal(userHistory.length, 0);
+  assert.equal(otherUserHistory.length, 1);
+});
+
 test('getResults can refuse to finalize an in-progress session when reviewing history', async () => {
   const repositories = createMockRepositories();
   const service = createSessionService(repositories);
