@@ -37,6 +37,59 @@ function formatBulletPoints(text) {
   return text.replace(/●\s*/g, '<br/>● ');
 }
 
+function escapeHtml(text) {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function normalizePromptText(text) {
+  let normalized = text.replace(/\r\n?/g, '\n').trim();
+
+  if (/[•●◦▪▫‣]/.test(normalized)) {
+    normalized = normalized.replace(/[ \t]*([•●◦▪▫‣])[ \t]*/g, '\n$1 ');
+    normalized = normalized.replace(/([^\n])\s+([A-Z][^?\n]*\?)$/, '$1\n$2');
+    normalized = normalized.replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  return normalized;
+}
+
+function formatRichText(text, { normalizeInlineBullets = false } = {}) {
+  if (!text) {
+    return '';
+  }
+
+  const normalized = normalizeInlineBullets ? normalizePromptTextBlock(text) : text.replace(/\r\n?/g, '\n').trim();
+  return escapeHtml(normalized).replace(/\n/g, '<br>');
+}
+
+export function formatQuestionText(text) {
+  return formatRichText(text, { normalizeInlineBullets: true });
+}
+
+function normalizePromptTextBlock(text) {
+  let normalized = text.replace(/\r\n?/g, '\n').trim();
+
+  if (/[\u2022\u25CF\u25E6\u25AA\u25AB\u2023]/.test(normalized)) {
+    normalized = normalized.replace(/[ \t]*([\u2022\u25CF\u25E6\u25AA\u25AB\u2023])[ \t]*/g, '\n$1 ');
+    normalized = normalized.replace(
+      /([^\n])\s+((?:What|Which|Who|When|Where|Why|How|Should|Could|Would|Will|Can|Is|Are|Do|Does|Did|Has|Have|Had)\b[^?\n]*\?)$/,
+      '$1\n$2'
+    );
+    normalized = normalized.replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  return normalized;
+}
+
+function formatInlineText(text) {
+  return formatRichText(text);
+}
+
 export function summarizeResults(summary) {
   return [
     { label: 'Correct', value: `${summary.correctCount} (${summary.correctPercentage}%)` },
@@ -435,7 +488,7 @@ function buildFeedbackMarkup(feedback) {
     <section class="feedback ${tone}">
       <p><strong>${feedback.result === 'correct' ? 'Correct' : 'Incorrect'}</strong></p>
       <p>Correct answer: ${feedback.correctOption}</p>
-      <p>${formatBulletPoints(feedback.explanation)}</p>
+      <p class="question-prompt">${formatQuestionText(feedback.explanation)}</p>
     </section>
   `;
 }
@@ -474,7 +527,7 @@ function renderQuestion() {
     }
     return `
       <button class="${classes.join(' ')}" data-answer="${option.key}" ${state.feedback ? 'disabled' : ''}>
-        <strong>${option.key}.</strong> ${formatBulletPoints(option.label)}
+        <strong>${option.key}.</strong> ${formatInlineText(option.label)}
       </button>
     `;
   }).join('');
@@ -487,7 +540,7 @@ function renderQuestion() {
         <p>Question ${question.questionNumber} of ${question.totalQuestions}</p>
       </div>
 
-      <h3>${formatBulletPoints(question.prompt)}</h3>
+      <h3 class="question-prompt">${formatQuestionText(question.prompt)}</h3>
       ${buildImageMarkup(question.imageUrl)}
       <div class="answer-list">${answerMarkup}</div>
       ${buildFeedbackMarkup(state.feedback)}
@@ -645,7 +698,7 @@ function renderAllQuestions() {
       
       return `
         <button class="${classes.join(' ')}" data-answer="${option.key}" data-question="${question.questionNumber}" ${feedback ? 'disabled' : ''}>
-          <strong>${option.key}.</strong> ${formatBulletPoints(option.label)}
+          <strong>${option.key}.</strong> ${formatInlineText(option.label)}
         </button>
       `;
     }).join('');
@@ -655,7 +708,7 @@ function renderAllQuestions() {
         <section class="feedback ${question.feedback.result === 'correct' ? 'correct' : 'incorrect'}">
           <p><strong>${question.feedback.result === 'correct' ? 'Correct' : 'Incorrect'}</strong></p>
           <p>Correct answer: ${question.feedback.correctOption}</p>
-          <p>${formatBulletPoints(question.feedback.explanation)}</p>
+          <p class="question-prompt">${formatQuestionText(question.feedback.explanation)}</p>
         </section>
       `
       : '';
@@ -678,7 +731,7 @@ function renderAllQuestions() {
             </button>
           </div>
         </div>
-        <p class="question-prompt">${formatBulletPoints(question.prompt)}</p>
+        <p class="question-prompt">${formatQuestionText(question.prompt)}</p>
         ${buildImageMarkup(question.imageUrl)}
         <div class="answer-list">${answerMarkup}</div>
         ${feedbackMarkup}
@@ -824,7 +877,7 @@ function buildReviewMarkup(item) {
 
       return `
         <li class="${classes.join(' ')}">
-          <strong>${option.key}.</strong> ${formatBulletPoints(option.label ?? '')}
+          <strong>${option.key}.</strong> ${formatInlineText(option.label ?? '')}
           ${badges.join('')}
         </li>
       `;
@@ -837,9 +890,9 @@ function buildReviewMarkup(item) {
         <h3>Question ${item.questionNumber}</h3>
         <span class="tag ${item.result}">${item.result}</span>
       </div>
-      <p>${formatBulletPoints(item.prompt ?? '')}</p>
+      <p class="question-prompt">${formatQuestionText(item.prompt ?? '')}</p>
       <ul class="review-options">${optionsMarkup}</ul>
-      <p>${formatBulletPoints(item.explanation)}</p>
+      <p class="question-prompt">${formatQuestionText(item.explanation)}</p>
     </article>
   `;
 }
