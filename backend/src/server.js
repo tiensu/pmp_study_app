@@ -65,7 +65,7 @@ function createErrorResponse(error) {
       'content-type': 'application/json; charset=utf-8',
       'access-control-allow-origin': '*',
       'access-control-allow-methods': 'GET,POST,OPTIONS,DELETE',
-      'access-control-allow-headers': 'Content-Type',
+      'access-control-allow-headers': 'Content-Type,x-user-id',
     },
     body: JSON.stringify({ error: { code, message } }),
   };
@@ -76,7 +76,7 @@ function writeResponse(response, result) {
     ...result.headers,
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'GET,POST,OPTIONS,DELETE',
-    'access-control-allow-headers': 'Content-Type',
+    'access-control-allow-headers': 'Content-Type,x-user-id',
   });
   response.end(result.body);
 }
@@ -100,8 +100,8 @@ export function createApp({
       if (request.method === 'OPTIONS') {
         response.writeHead(204, {
           'access-control-allow-origin': '*',
-          'access-control-allow-methods': 'GET,POST,OPTIONS',
-          'access-control-allow-headers': 'Content-Type',
+          'access-control-allow-methods': 'GET,POST,OPTIONS,DELETE',
+          'access-control-allow-headers': 'Content-Type,x-user-id',
         });
         response.end();
         return;

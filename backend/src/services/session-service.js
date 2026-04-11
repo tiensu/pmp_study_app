@@ -183,6 +183,16 @@ export function createSessionService({
       return sessions.map(buildHistoryEntry);
     },
 
+    async clearSessionsForExamSet(examSetId, userId) {
+      const examSet = await examSetRepository.getById(examSetId);
+      if (!examSet) {
+        throw new Error('Exam not found.');
+      }
+
+      const deletedCount = await sessionRepository.deleteForExamSetAndUser(userId, examSetId);
+      return { deletedCount };
+    },
+
     async getQuestion(sessionId, questionNumber) {
       const session = await sessionRepository.getById(sessionId);
       if (!session) {

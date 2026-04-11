@@ -52,6 +52,23 @@ export function createSessionsRoutes({ sessionService, sessionRepository, userRe
     }
 
     const sessionMatch = request.pathname.match(/^\/api\/sessions\/(\d+)$/);
+    if (request.method === 'DELETE' && sessionMatch) {
+      try {
+        if (!userId) return getAuthError();
+        const [, sessionId] = sessionMatch;
+        const session = await sessionRepository.getByIdAndUserId(Number(sessionId), userId);
+        if (!session) return getAuthError();
+
+        const deletedCount = await sessionRepository.deleteByIdAndUserId(Number(sessionId), userId);
+        return jsonResponse({ message: 'Session history deleted', deletedCount });
+      } catch (error) {
+        return jsonResponse(
+          { error: { code: 'SESSION_ERROR', message: error.message } },
+          400,
+        );
+      }
+    }
+
     if (request.method === 'GET' && sessionMatch) {
       try {
         if (!userId) return getAuthError();

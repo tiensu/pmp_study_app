@@ -41,6 +41,22 @@ export function createExamsRoutes({
     }
 
     const examSessionHistoryMatch = request.pathname.match(/^\/api\/exams\/(\d+)\/sessions$/);
+    if (request.method === 'DELETE' && examSessionHistoryMatch) {
+      try {
+        const userId = request.headers['x-user-id'] ? Number(request.headers['x-user-id']) : null;
+        if (!userId) return getAuthError();
+
+        const examSetId = Number(examSessionHistoryMatch[1]);
+        const result = await sessionService.clearSessionsForExamSet(examSetId, userId);
+        return jsonResponse({
+          message: 'Exam history cleared',
+          deletedCount: result.deletedCount,
+        });
+      } catch (error) {
+        return jsonResponse({ error: { message: error.message } }, 400);
+      }
+    }
+
     if (request.method === 'GET' && examSessionHistoryMatch) {
       const userId = request.headers['x-user-id'] ? Number(request.headers['x-user-id']) : null;
       if (!userId) return getAuthError();
