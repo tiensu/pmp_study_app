@@ -123,6 +123,26 @@ function qs(id) {
   return document.getElementById(id);
 }
 
+function buildResponseErrorMessage(response, text) {
+  if (response.status === 413) {
+    return 'Backup file is too large for the server upload limit.';
+  }
+  const trimmedText = text.trim();
+  if (trimmedText.startsWith('<')) {
+    return `Request failed with status ${response.status}.`;
+  }
+  return trimmedText || `Request failed with status ${response.status}.`;
+}
+
+async function readResponsePayload(response) {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (contentType.includes('application/json')) {
+    return response.json();
+  }
+  const text = await response.text();
+  return { error: { message: buildResponseErrorMessage(response, text) } };
+}
+
 async function request(url, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (state.userId) {
@@ -132,7 +152,7 @@ async function request(url, options = {}) {
     headers,
     ...options,
   });
-  const payload = await response.json();
+  const payload = await readResponsePayload(response);
   if (!response.ok) {
     throw new Error(payload.error?.message ?? 'Request failed.');
   }
@@ -1327,7 +1347,7 @@ async function backupDatabase() {
 
     const response = await fetch('/api/backup', { headers });
     if (!response.ok) {
-      const payload = await response.json();
+      const payload = await readResponsePayload(response);
       throw new Error(payload.error?.message ?? 'Backup failed.');
     }
 
