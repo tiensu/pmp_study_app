@@ -119,6 +119,13 @@ export function buildSessionStatus(session, { resumed = false } = {}) {
     : 'Exam mode hides feedback until the session ends and resumes if you refresh the app.';
 }
 
+function getActiveExamTitle() {
+  return state.session?.examTitle
+    ?? state.question?.examTitle
+    ?? state.result?.examTitle
+    ?? 'Selected exam';
+}
+
 function qs(id) {
   return document.getElementById(id);
 }
@@ -554,6 +561,7 @@ function renderQuestion() {
     <section>
       <div class="meta">
         <p>Mode: <strong>${state.session.mode === 'practice' ? 'Practice' : 'Exam'}</strong></p>
+        <p>Exam: <strong>${escapeHtml(getActiveExamTitle())}</strong></p>
         <p>Question ${question.questionNumber} of ${question.totalQuestions}</p>
       </div>
 
@@ -638,7 +646,7 @@ function renderQuestion() {
   });
 }
 
-function buildQuestionIndexMarkup(questions, mode) {
+export function buildQuestionIndexMarkup(questions, mode, examTitle = getActiveExamTitle()) {
   if (!questions || questions.length === 0) {
     return '';
   }
@@ -674,7 +682,7 @@ function buildQuestionIndexMarkup(questions, mode) {
 
   return `
       <nav class="question-index">
-        <p>Question index:</p>
+        <p class="question-index-heading">Question index - <strong>${escapeHtml(examTitle)}</strong></p>
         <div class="index-buttons">
           ${indexMarkup}
         </div>
@@ -760,6 +768,7 @@ function renderAllQuestions() {
     <section class="all-questions-container">
       <div class="meta">
         <p>Mode: <strong>${state.session.mode === 'practice' ? 'Practice' : 'Exam'}</strong></p>
+        <p>Exam: <strong>${escapeHtml(getActiveExamTitle())}</strong></p>
         <p>Total Questions: <strong>${state.allQuestions.length}</strong></p>
       </div>
       
@@ -1208,7 +1217,7 @@ async function restoreLatestActiveSession() {
   }
 
   state.pendingScrollQuestionNumber = session.currentQuestionNumber;
-  showToast(`Resuming your ${session.mode === 'practice' ? 'Practice' : 'Exam'} session at question ${session.currentQuestionNumber}.`, 'info', 5000);
+  showToast(`Resuming ${session.examTitle ?? 'your exam'} at question ${session.currentQuestionNumber}.`, 'info', 5000);
   return restoreSession(session.id);
 }
 
@@ -1232,6 +1241,10 @@ async function loadAllQuestions() {
       renderResults();
       return;
     }
+    state.session = {
+      ...state.session,
+      examTitle: payload.examTitle ?? state.session.examTitle,
+    };
     state.allQuestions = payload.questions || [];
     renderTimer(payload.deadlineAt);
     renderAllQuestions();
@@ -1250,6 +1263,10 @@ async function loadQuestion(questionNumber) {
     renderResults();
     return;
   }
+  state.session = {
+    ...state.session,
+    examTitle: payload.examTitle ?? state.session.examTitle,
+  };
   state.question = payload;
   renderTimer(payload.deadlineAt);
   renderQuestion();

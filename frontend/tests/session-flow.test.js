@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyResults, buildSessionStatus, createStateSnapshot, summarizeResults } from '../src/scripts/app.js';
+import { applyResults, buildQuestionIndexMarkup, buildSessionStatus, createStateSnapshot, summarizeResults } from '../src/scripts/app.js';
 
 test('session flow helpers store final results cleanly', () => {
   const snapshot = createStateSnapshot();
@@ -16,4 +16,14 @@ test('session flow helpers store final results cleanly', () => {
 
 test('session flow helpers describe exam resume behavior', () => {
   assert.match(buildSessionStatus({ mode: 'exam', status: 'in_progress' }, { resumed: true }), /Resumed/);
+});
+
+test('question index includes the active exam title', () => {
+  const markup = buildQuestionIndexMarkup(
+    [{ questionNumber: 1, selectedOption: null, isMarkedForReview: false }],
+    'exam',
+    'TEST 1',
+  );
+
+  assert.match(markup, /Question index - <strong>TEST 1<\/strong>/);
 });

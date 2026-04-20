@@ -21,6 +21,7 @@ function buildQuestionPayload(session, question, answer) {
   return {
     sessionId: session.id,
     mode: session.mode,
+    examTitle: session.examTitle,
     questionNumber: question.questionNumber,
     totalQuestions: session.totalQuestions,
     prompt: question.prompt,
@@ -45,6 +46,7 @@ function toSessionSummary(session) {
   return {
     id: session.id,
     examSetId: session.examSetId,
+    examTitle: session.examTitle,
     mode: session.mode,
     status: session.status,
     currentQuestionNumber: session.currentQuestionNumber,
@@ -72,6 +74,7 @@ function buildResultPayload(session, reviewItems, importSummary) {
   return {
     sessionId: session.id,
     examSetId: session.examSetId,
+    examTitle: session.examTitle,
     mode: session.mode,
     status: session.status,
     totalQuestions: session.totalQuestions,
@@ -144,7 +147,7 @@ export function createSessionService({
             }
             // Return existing session instead of creating a new one
             return {
-              ...toSessionSummary({ ...existingSession, importSummary: examSet.importSummary }),
+              ...toSessionSummary({ ...existingSession, examTitle: examSet.title, importSummary: examSet.importSummary }),
               resumed: true,
             };
           }
@@ -164,7 +167,7 @@ export function createSessionService({
       await sessionQuestionRepository.replaceForSession(session.id, orderedQuestions);
 
       return {
-        ...toSessionSummary({ ...session, importSummary: examSet.importSummary }),
+        ...toSessionSummary({ ...session, examTitle: examSet.title, importSummary: examSet.importSummary }),
         resumed: false,
       };
     },
@@ -175,7 +178,7 @@ export function createSessionService({
         throw new Error('Session not found.');
       }
       const examSet = await examSetRepository.getById(session.examSetId);
-      return toSessionSummary({ ...session, importSummary: examSet?.importSummary ?? null });
+      return toSessionSummary({ ...session, examTitle: examSet?.title ?? null, importSummary: examSet?.importSummary ?? null });
     },
 
     async getLatestActiveSessionForUser(userId) {
@@ -185,7 +188,7 @@ export function createSessionService({
       }
 
       const examSet = await examSetRepository.getById(session.examSetId);
-      return toSessionSummary({ ...session, importSummary: examSet?.importSummary ?? null });
+      return toSessionSummary({ ...session, examTitle: examSet?.title ?? null, importSummary: examSet?.importSummary ?? null });
     },
 
     async listSessionsForExamSet(examSetId, userId) {
@@ -220,7 +223,7 @@ export function createSessionService({
 
       const answer = await sessionAnswerRepository.getForSessionQuestion(sessionId, questionNumber);
       const examSet = await examSetRepository.getById(session.examSetId);
-      return buildQuestionPayload({ ...session, importSummary: examSet?.importSummary ?? null }, question, answer);
+      return buildQuestionPayload({ ...session, examTitle: examSet?.title ?? null, importSummary: examSet?.importSummary ?? null }, question, answer);
     },
 
     async getAllQuestions(sessionId) {
@@ -244,15 +247,16 @@ export function createSessionService({
 
       const questionsPayload = questions.map(question => {
         const answer = answersMap.get(question.questionNumber);
-        return buildQuestionPayload({ ...session, importSummary: examSet?.importSummary ?? null }, question, answer);
+        return buildQuestionPayload({ ...session, examTitle: examSet?.title ?? null, importSummary: examSet?.importSummary ?? null }, question, answer);
       });
 
       return {
         sessionId: session.id,
         mode: session.mode,
+        examTitle: examSet?.title ?? null,
         totalQuestions: session.totalQuestions,
         deadlineAt: session.deadlineAt,
-        importSummary: session.importSummary,
+        importSummary: examSet?.importSummary ?? null,
         questions: questionsPayload,
       };
     },
@@ -322,7 +326,7 @@ export function createSessionService({
       const finalized = await sessionRepository.finalize(sessionId, summary, expired ? 'expired' : 'completed');
       const examSet = await examSetRepository.getById(finalized.examSetId);
 
-      return buildResultPayload(finalized, summary.reviewItems, examSet?.importSummary ?? null);
+      return buildResultPayload({ ...finalized, examTitle: examSet?.title ?? null }, summary.reviewItems, examSet?.importSummary ?? null);
     },
 
     async getResults(sessionId, { finalizeInProgress = true } = {}) {
@@ -344,7 +348,7 @@ export function createSessionService({
       const summary = calculateSummary(questions, answers);
 
       return buildResultPayload(
-        session,
+        { ...session, examTitle: examSet?.title ?? null },
         summary.reviewItems,
         examSet?.importSummary ?? null,
       );

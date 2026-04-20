@@ -10,6 +10,7 @@ test('startSession returns an in-progress practice session with total questions'
 
   assert.equal(session.mode, 'practice');
   assert.equal(session.status, 'in_progress');
+  assert.equal(session.examTitle, 'Mock Exam');
   assert.equal(session.totalQuestions, 5);
 });
 
@@ -20,6 +21,7 @@ test('getSession returns import summary and resume metadata for exam mode', asyn
   const resumed = await service.getSession(session.id);
 
   assert.equal(resumed.mode, 'exam');
+  assert.equal(resumed.examTitle, 'Mock Exam');
   assert.equal(resumed.totalQuestions, 3);
   assert.match(resumed.importSummary, /2 invalid row\(s\) skipped/);
   assert.ok(resumed.deadlineAt);
@@ -57,12 +59,14 @@ test('getQuestion and getAllQuestions return practice feedback for previously an
   await service.submitAnswer(session.id, { questionNumber: 1, selectedOption: 'A' });
 
   const question = await service.getQuestion(session.id, 1);
+  assert.equal(question.examTitle, 'Mock Exam');
   assert.equal(question.selectedOption, 'A');
   assert.equal(question.feedback.result, 'correct');
   assert.equal(question.feedback.correctOption, 'A');
   assert.match(question.feedback.explanation, /Explanation/);
 
   const payload = await service.getAllQuestions(session.id);
+  assert.equal(payload.examTitle, 'Mock Exam');
   assert.equal(payload.questions[0].selectedOption, 'A');
   assert.equal(payload.questions[0].feedback.result, 'correct');
 });
