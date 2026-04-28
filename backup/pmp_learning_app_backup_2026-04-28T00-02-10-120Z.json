@@ -1,7 +1,7 @@
 {
   "app": "pmp_learning_app",
   "version": 1,
-  "exportedAt": "2026-04-23T00:08:13.297Z",
+  "exportedAt": "2026-04-28T00:02:10.119Z",
   "tables": {
     "exam_sets": [
       {
@@ -32407,7 +32407,7 @@
         "deadline_at": null,
         "completed_at": null,
         "total_questions": 200,
-        "current_question_number": 125,
+        "current_question_number": 189,
         "correct_count": 0,
         "incorrect_count": 0,
         "unanswered_count": 200,
@@ -49134,6 +49134,582 @@
         "selected_option": "B",
         "is_correct": false,
         "answered_at": "2026-04-22T15:28:32.446Z"
+      },
+      {
+        "id": "997",
+        "session_id": "22",
+        "question_id": "1273",
+        "question_number": 125,
+        "selected_option": "A",
+        "is_correct": false,
+        "answered_at": "2026-04-23T14:29:41.472Z"
+      },
+      {
+        "id": "998",
+        "session_id": "22",
+        "question_id": "1292",
+        "question_number": 126,
+        "selected_option": "C",
+        "is_correct": true,
+        "answered_at": "2026-04-23T14:32:08.391Z"
+      },
+      {
+        "id": "999",
+        "session_id": "22",
+        "question_id": "1215",
+        "question_number": 127,
+        "selected_option": "B",
+        "is_correct": true,
+        "answered_at": "2026-04-23T14:33:50.287Z"
+      },
+      {
+        "id": "1000",
+        "session_id": "22",
+        "question_id": "1311",
+        "question_number": 128,
+        "selected_option": "D",
+        "is_correct": false,
+        "answered_at": "2026-04-23T14:35:07.242Z"
+      },
+      {
+        "id": "1001",
+        "session_id": "22",
+        "question_id": "1394",
+        "question_number": 129,
+        "selected_option": "B",
+        "is_correct": true,
+        "answered_at": "2026-04-23T14:36:36.022Z"
+      },
+      {
+        "id": "1002",
+        "session_id": "22",
+        "question_id": "1400",
+        "question_number": 130,
+        "selected_option": "B",
+        "is_correct": true,
+        "answered_at": "2026-04-23T14:38:19.905Z"
+      },
+      {
+        "id": "1003",
+        "session_id": "22",
+        "question_id": "1363",
+        "question_number": 131,
+        "selected_option": "C",
+        "is_correct": false,
+        "answered_at": "2026-04-23T14:40:03.487Z"
+      },
+      {
+        "id": "1004",
+        "session_id": "22",
+        "question_id": "1347",
+        "question_number": 132,
+        "selected_option": "A",
+        "is_correct": false,
+        "answered_at": "2026-04-23T14:41:01.280Z"
+      },
+      {
+        "id": "1005",
+        "session_id": "22",
+        "question_id": "1373",
+        "question_number": 133,
+        "selected_option": "A",
+        "is_correct": false,
+        "answered_at": "2026-04-23T14:42:48.940Z"
+      },
+      {
+        "id": "1006",
+        "session_id": "22",
+        "question_id": "1281",
+        "question_number": 134,
+        "selected_option": "D",
+        "is_correct": false,
+        "answered_at": "2026-04-23T14:43:53.241Z"
+      },
+      {
+        "id": "1007",
+        "session_id": "22",
+        "question_id": "1298",
+        "question_number": 135,
+        "selected_option": "D",
+        "is_correct": true,
+        "answered_at": "2026-04-23T14:47:12.247Z"
+      },
+      {
+        "id": "1008",
+        "session_id": "22",
+        "question_id": "1240",
+        "question_number": 136,
+        "selected_option": "A",
+        "is_correct": true,
+        "answered_at": "2026-04-23T14:47:31.948Z"
+      },
+      {
+        "id": "1009",
+        "session_id": "22",
+        "question_id": "1355",
+        "question_number": 137,
+        "selected_option": "B",
+        "is_correct": false,
+        "answered_at": "2026-04-23T14:50:10.649Z"
+      },
+      {
+        "id": "1010",
+        "session_id": "22",
+        "question_id": "1325",
+        "question_number": 138,
+        "selected_option": "C",
+        "is_correct": true,
+        "answered_at": "2026-04-23T14:51:32.174Z"
+      },
+      {
+        "id": "1011",
+        "session_id": "22",
+        "question_id": "1348",
+        "question_number": 139,
+        "selected_option": "C",
+        "is_correct": true,
+        "answered_at": "2026-04-23T14:54:00.430Z"
+      },
+      {
+        "id": "1012",
+        "session_id": "22",
+        "question_id": "1377",
+        "question_number": 140,
+        "selected_option": "D",
+        "is_correct": true,
+        "answered_at": "2026-04-23T14:55:55.584Z"
+      },
+      {
+        "id": "1013",
+        "session_id": "22",
+        "question_id": "1221",
+        "question_number": 141,
+        "selected_option": "B",
+        "is_correct": false,
+        "answered_at": "2026-04-23T14:57:21.895Z"
+      },
+      {
+        "id": "1014",
+        "session_id": "22",
+        "question_id": "1255",
+        "question_number": 142,
+        "selected_option": "D",
+        "is_correct": true,
+        "answered_at": "2026-04-23T14:58:36.739Z"
+      },
+      {
+        "id": "1015",
+        "session_id": "22",
+        "question_id": "1380",
+        "question_number": 143,
+        "selected_option": "D",
+        "is_correct": true,
+        "answered_at": "2026-04-23T14:59:12.558Z"
+      },
+      {
+        "id": "1016",
+        "session_id": "22",
+        "question_id": "1399",
+        "question_number": 144,
+        "selected_option": "A",
+        "is_correct": true,
+        "answered_at": "2026-04-23T15:00:34.829Z"
+      },
+      {
+        "id": "1017",
+        "session_id": "22",
+        "question_id": "1350",
+        "question_number": 145,
+        "selected_option": "C",
+        "is_correct": true,
+        "answered_at": "2026-04-23T15:01:32.353Z"
+      },
+      {
+        "id": "1018",
+        "session_id": "22",
+        "question_id": "1271",
+        "question_number": 146,
+        "selected_option": "B",
+        "is_correct": true,
+        "answered_at": "2026-04-23T15:02:01.161Z"
+      },
+      {
+        "id": "1019",
+        "session_id": "22",
+        "question_id": "1374",
+        "question_number": 147,
+        "selected_option": "A",
+        "is_correct": true,
+        "answered_at": "2026-04-23T15:03:37.706Z"
+      },
+      {
+        "id": "1020",
+        "session_id": "22",
+        "question_id": "1408",
+        "question_number": 148,
+        "selected_option": "D",
+        "is_correct": true,
+        "answered_at": "2026-04-23T15:15:12.312Z"
+      },
+      {
+        "id": "1021",
+        "session_id": "22",
+        "question_id": "1274",
+        "question_number": 149,
+        "selected_option": "C",
+        "is_correct": true,
+        "answered_at": "2026-04-23T15:16:32.524Z"
+      },
+      {
+        "id": "1022",
+        "session_id": "22",
+        "question_id": "1260",
+        "question_number": 150,
+        "selected_option": "A",
+        "is_correct": true,
+        "answered_at": "2026-04-23T15:17:45.862Z"
+      },
+      {
+        "id": "1023",
+        "session_id": "22",
+        "question_id": "1225",
+        "question_number": 151,
+        "selected_option": "D",
+        "is_correct": false,
+        "answered_at": "2026-04-23T15:18:39.770Z"
+      },
+      {
+        "id": "1024",
+        "session_id": "22",
+        "question_id": "1396",
+        "question_number": 152,
+        "selected_option": "B",
+        "is_correct": true,
+        "answered_at": "2026-04-23T15:19:44.467Z"
+      },
+      {
+        "id": "1025",
+        "session_id": "22",
+        "question_id": "1303",
+        "question_number": 153,
+        "selected_option": "C",
+        "is_correct": false,
+        "answered_at": "2026-04-23T15:21:39.048Z"
+      },
+      {
+        "id": "1026",
+        "session_id": "22",
+        "question_id": "1304",
+        "question_number": 154,
+        "selected_option": "A",
+        "is_correct": true,
+        "answered_at": "2026-04-23T15:22:50.690Z"
+      },
+      {
+        "id": "1027",
+        "session_id": "22",
+        "question_id": "1293",
+        "question_number": 155,
+        "selected_option": "D",
+        "is_correct": true,
+        "answered_at": "2026-04-23T15:24:50.839Z"
+      },
+      {
+        "id": "1028",
+        "session_id": "22",
+        "question_id": "1369",
+        "question_number": 156,
+        "selected_option": "A",
+        "is_correct": true,
+        "answered_at": "2026-04-23T15:30:30.023Z"
+      },
+      {
+        "id": "1029",
+        "session_id": "22",
+        "question_id": "1284",
+        "question_number": 157,
+        "selected_option": "D",
+        "is_correct": false,
+        "answered_at": "2026-04-26T09:24:33.022Z"
+      },
+      {
+        "id": "1030",
+        "session_id": "22",
+        "question_id": "1270",
+        "question_number": 158,
+        "selected_option": "B",
+        "is_correct": false,
+        "answered_at": "2026-04-26T09:29:10.138Z"
+      },
+      {
+        "id": "1031",
+        "session_id": "22",
+        "question_id": "1307",
+        "question_number": 159,
+        "selected_option": "C",
+        "is_correct": true,
+        "answered_at": "2026-04-26T09:35:03.466Z"
+      },
+      {
+        "id": "1032",
+        "session_id": "22",
+        "question_id": "1371",
+        "question_number": 160,
+        "selected_option": "C",
+        "is_correct": true,
+        "answered_at": "2026-04-26T09:36:39.763Z"
+      },
+      {
+        "id": "1033",
+        "session_id": "22",
+        "question_id": "1226",
+        "question_number": 161,
+        "selected_option": "C",
+        "is_correct": true,
+        "answered_at": "2026-04-26T09:39:49.309Z"
+      },
+      {
+        "id": "1034",
+        "session_id": "22",
+        "question_id": "1338",
+        "question_number": 162,
+        "selected_option": "D",
+        "is_correct": false,
+        "answered_at": "2026-04-26T09:41:02.227Z"
+      },
+      {
+        "id": "1035",
+        "session_id": "22",
+        "question_id": "1362",
+        "question_number": 163,
+        "selected_option": "C",
+        "is_correct": true,
+        "answered_at": "2026-04-26T09:44:43.411Z"
+      },
+      {
+        "id": "1036",
+        "session_id": "22",
+        "question_id": "1245",
+        "question_number": 164,
+        "selected_option": "C",
+        "is_correct": true,
+        "answered_at": "2026-04-26T09:48:11.531Z"
+      },
+      {
+        "id": "1037",
+        "session_id": "22",
+        "question_id": "1296",
+        "question_number": 165,
+        "selected_option": "A",
+        "is_correct": true,
+        "answered_at": "2026-04-27T01:38:34.020Z"
+      },
+      {
+        "id": "1038",
+        "session_id": "22",
+        "question_id": "1291",
+        "question_number": 166,
+        "selected_option": "B",
+        "is_correct": false,
+        "answered_at": "2026-04-27T01:39:59.422Z"
+      },
+      {
+        "id": "1039",
+        "session_id": "22",
+        "question_id": "1385",
+        "question_number": 167,
+        "selected_option": "A",
+        "is_correct": true,
+        "answered_at": "2026-04-27T02:02:18.667Z"
+      },
+      {
+        "id": "1040",
+        "session_id": "22",
+        "question_id": "1405",
+        "question_number": 168,
+        "selected_option": "D",
+        "is_correct": true,
+        "answered_at": "2026-04-27T02:03:35.909Z"
+      },
+      {
+        "id": "1041",
+        "session_id": "22",
+        "question_id": "1322",
+        "question_number": 169,
+        "selected_option": "B",
+        "is_correct": true,
+        "answered_at": "2026-04-27T02:08:17.147Z"
+      },
+      {
+        "id": "1042",
+        "session_id": "22",
+        "question_id": "1357",
+        "question_number": 170,
+        "selected_option": "D",
+        "is_correct": true,
+        "answered_at": "2026-04-27T02:09:00.501Z"
+      },
+      {
+        "id": "1043",
+        "session_id": "22",
+        "question_id": "1393",
+        "question_number": 171,
+        "selected_option": "B",
+        "is_correct": false,
+        "answered_at": "2026-04-27T02:13:23.252Z"
+      },
+      {
+        "id": "1044",
+        "session_id": "22",
+        "question_id": "1312",
+        "question_number": 172,
+        "selected_option": "B",
+        "is_correct": false,
+        "answered_at": "2026-04-27T10:54:47.786Z"
+      },
+      {
+        "id": "1045",
+        "session_id": "22",
+        "question_id": "1256",
+        "question_number": 173,
+        "selected_option": "A",
+        "is_correct": true,
+        "answered_at": "2026-04-27T10:57:16.984Z"
+      },
+      {
+        "id": "1046",
+        "session_id": "22",
+        "question_id": "1239",
+        "question_number": 174,
+        "selected_option": "B",
+        "is_correct": true,
+        "answered_at": "2026-04-27T11:04:50.446Z"
+      },
+      {
+        "id": "1047",
+        "session_id": "22",
+        "question_id": "1238",
+        "question_number": 175,
+        "selected_option": "B",
+        "is_correct": false,
+        "answered_at": "2026-04-27T14:28:31.670Z"
+      },
+      {
+        "id": "1048",
+        "session_id": "22",
+        "question_id": "1372",
+        "question_number": 176,
+        "selected_option": "B",
+        "is_correct": true,
+        "answered_at": "2026-04-27T14:34:15.801Z"
+      },
+      {
+        "id": "1049",
+        "session_id": "22",
+        "question_id": "1275",
+        "question_number": 177,
+        "selected_option": "C",
+        "is_correct": true,
+        "answered_at": "2026-04-27T14:38:12.824Z"
+      },
+      {
+        "id": "1050",
+        "session_id": "22",
+        "question_id": "1243",
+        "question_number": 178,
+        "selected_option": "D",
+        "is_correct": true,
+        "answered_at": "2026-04-27T14:41:16.229Z"
+      },
+      {
+        "id": "1051",
+        "session_id": "22",
+        "question_id": "1224",
+        "question_number": 179,
+        "selected_option": "C",
+        "is_correct": true,
+        "answered_at": "2026-04-27T14:42:07.295Z"
+      },
+      {
+        "id": "1052",
+        "session_id": "22",
+        "question_id": "1242",
+        "question_number": 180,
+        "selected_option": "B",
+        "is_correct": true,
+        "answered_at": "2026-04-27T14:47:41.176Z"
+      },
+      {
+        "id": "1053",
+        "session_id": "22",
+        "question_id": "1330",
+        "question_number": 181,
+        "selected_option": "B",
+        "is_correct": true,
+        "answered_at": "2026-04-27T14:51:50.763Z"
+      },
+      {
+        "id": "1054",
+        "session_id": "22",
+        "question_id": "1365",
+        "question_number": 182,
+        "selected_option": "A",
+        "is_correct": true,
+        "answered_at": "2026-04-27T14:53:25.219Z"
+      },
+      {
+        "id": "1055",
+        "session_id": "22",
+        "question_id": "1244",
+        "question_number": 183,
+        "selected_option": "B",
+        "is_correct": true,
+        "answered_at": "2026-04-27T14:56:58.162Z"
+      },
+      {
+        "id": "1056",
+        "session_id": "22",
+        "question_id": "1257",
+        "question_number": 184,
+        "selected_option": "C",
+        "is_correct": false,
+        "answered_at": "2026-04-27T14:59:07.439Z"
+      },
+      {
+        "id": "1057",
+        "session_id": "22",
+        "question_id": "1286",
+        "question_number": 185,
+        "selected_option": "B",
+        "is_correct": true,
+        "answered_at": "2026-04-27T15:00:49.696Z"
+      },
+      {
+        "id": "1058",
+        "session_id": "22",
+        "question_id": "1321",
+        "question_number": 186,
+        "selected_option": "B",
+        "is_correct": true,
+        "answered_at": "2026-04-27T15:02:26.170Z"
+      },
+      {
+        "id": "1059",
+        "session_id": "22",
+        "question_id": "1359",
+        "question_number": 187,
+        "selected_option": "D",
+        "is_correct": true,
+        "answered_at": "2026-04-27T15:04:31.828Z"
+      },
+      {
+        "id": "1060",
+        "session_id": "22",
+        "question_id": "1212",
+        "question_number": 188,
+        "selected_option": "C",
+        "is_correct": true,
+        "answered_at": "2026-04-27T15:07:19.410Z"
       }
     ]
   }
